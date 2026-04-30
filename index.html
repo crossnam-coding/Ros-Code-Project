@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>스페이스 슈터 - 2D Shooting Game</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #000;
+    color: #fff;
+    font-family: 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+    overflow: hidden;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, #0b1230 0%, #000 80%);
+  }
+  h1 {
+    font-size: 22px;
+    letter-spacing: 4px;
+    margin-bottom: 10px;
+    color: #6df;
+    text-shadow: 0 0 8px #6df;
+  }
+  #wrap {
+    position: relative;
+    border: 2px solid #6df;
+    border-radius: 6px;
+    box-shadow: 0 0 24px #6df8;
+  }
+  canvas {
+    display: block;
+    background: #000;
+  }
+  #hud {
+    position: absolute;
+    top: 8px; left: 12px; right: 12px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #cdf;
+    text-shadow: 0 0 4px #000;
+    pointer-events: none;
+  }
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    text-align: center;
+    padding: 20px;
+  }
+  #overlay h2 {
+    font-size: 32px;
+    color: #6df;
+    text-shadow: 0 0 10px #6df;
+    margin-bottom: 16px;
+  }
+  #overlay p { margin: 6px 0; line-height: 1.6; }
+  #overlay button {
+    margin-top: 18px;
+    padding: 10px 28px;
+    font-size: 16px;
+    background: #6df;
+    color: #001;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    letter-spacing: 2px;
+    transition: transform .1s, box-shadow .2s;
+  }
+  #overlay button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 16px #6df;
+  }
+  .hidden { display: none !important; }
+  .key {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #234;
+    border: 1px solid #6df;
+    border-radius: 3px;
+    margin: 0 2px;
+    font-family: monospace;
+    font-size: 13px;
+  }
+  small { color: #89a; }
+</style>
+</head>
+<body>
+  <h1>S P A C E &nbsp; S H O O T E R</h1>
+  <div id="wrap">
+    <canvas id="game" width="600" height="700"></canvas>
+    <div id="hud">
+      <div>점수: <span id="score">0</span></div>
+      <div>레벨: <span id="level">1</span></div>
+      <div>생명: <span id="lives">3</span></div>
+    </div>
+    <div id="overlay">
+      <h2 id="title">스페이스 슈터</h2>
+      <p>누구나 즐길 수 있는 2D 슈팅 게임</p>
+      <p><span class="key">←</span> <span class="key">→</span> <span class="key">↑</span> <span class="key">↓</span> 또는 <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 이동</p>
+      <p><span class="key">Space</span> 발사 &nbsp;·&nbsp; <span class="key">P</span> 일시정지</p>
+      <p><small>적을 격추할수록 점수와 레벨이 올라갑니다.</small></p>
+      <button id="startBtn">게임 시작</button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const scoreEl = document.getElementById('score');
+  const levelEl = document.getElementById('level');
+  const livesEl = document.getElementById('lives');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('title');
+  const startBtn = document.getElementById('startBtn');
+
+  const keys = {};
+  window.addEventListener('keydown', e => {
+    keys[e.key.toLowerCase()] = true;
+    if ([' ', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+    }
+    if (e.key.toLowerCase() === 'p' && state.running) togglePause();
+  });
+  window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+  const state = {
+    running: false,
+    paused: false,
+    score: 0,
+    level: 1,
+    lives: 3,
+    spawnTimer: 0,
+    spawnInterval: 60,
+    shootCooldown: 0,
+    stars: [],
+  };
+
+  const player = {
+    x: W / 2, y: H - 60,
+    w: 36, h: 36,
+    speed: 5,
+    invuln: 0,
+  };
+
+  const bullets = [];
+  const enemies = [];
+  const enemyBullets = [];
+  const particles = [];
+
+  for (let i = 0; i < 80; i++) {
+    state.stars.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      s: Math.random() * 1.5 + 0.3,
+      v: Math.random() * 1.5 + 0.5,
+    });
+  }
+
+  function reset() {
+    state.score = 0;
+    state.level = 1;
+    state.lives = 3;
+    state.spawnTimer = 0;
+    state.spawnInterval = 60;
+    state.shootCooldown = 0;
+    player.x = W / 2;
+    player.y = H - 60;
+    player.invuln = 0;
+    bullets.length = 0;
+    enemies.length = 0;
+    enemyBullets.length = 0;
+    particles.length = 0;
+    updateHUD();
+  }
+
+  function updateHUD() {
+    scoreEl.textContent = state.score;
+    levelEl.textContent = state.level;
+    livesEl.textContent = state.lives;
+  }
+
+  function spawnEnemy() {
+    const type = Math.random() < 0.18 + state.level * 0.02 ? 'shooter' : 'basic';
+    const w = type === 'shooter' ? 36 : 30;
+    enemies.push({
+      x: Math.random() * (W - w - 20) + 10,
+      y: -30,
+      w, h: w,
+      vx: (Math.random() - 0.5) * (1 + state.level * 0.2),
+      vy: 1 + Math.random() * 1.2 + state.level * 0.15,
+      hp: type === 'shooter' ? 2 : 1,
+      type,
+      shootTimer: 60 + Math.random() * 60,
+    });
+  }
+
+  function shoot() {
+    if (state.shootCooldown > 0) return;
+    state.shootCooldown = 10;
+    bullets.push({ x: player.x, y: player.y - 18, vy: -10, w: 4, h: 12 });
+    if (state.level >= 3) {
+      bullets.push({ x: player.x - 12, y: player.y - 10, vy: -10, vx: -1, w: 3, h: 10 });
+      bullets.push({ x: player.x + 12, y: player.y - 10, vy: -10, vx: 1, w: 3, h: 10 });
+    }
+  }
+
+  function explode(x, y, color, count = 14) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = Math.random() * 3 + 1;
+      particles.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        life: 30 + Math.random() * 20,
+        color,
+      });
+    }
+  }
+
+  function rectsCollide(a, b) {
+    return a.x - a.w/2 < b.x + b.w/2 &&
+           a.x + a.w/2 > b.x - b.w/2 &&
+           a.y - a.h/2 < b.y + b.h/2 &&
+           a.y + a.h/2 > b.y - b.h/2;
+  }
+
+  function update() {
+    if (!state.running || state.paused) return;
+
+    for (const s of state.stars) {
+      s.y += s.v;
+      if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+    }
+
+    if (keys['arrowleft'] || keys['a']) player.x -= player.speed;
+    if (keys['arrowright'] || keys['d']) player.x += player.speed;
+    if (keys['arrowup'] || keys['w']) player.y -= player.speed;
+    if (keys['arrowdown'] || keys['s']) player.y += player.speed;
+    player.x = Math.max(player.w/2, Math.min(W - player.w/2, player.x));
+    player.y = Math.max(player.h/2, Math.min(H - player.h/2, player.y));
+
+    if (keys[' ']) shoot();
+    if (state.shootCooldown > 0) state.shootCooldown--;
+    if (player.invuln > 0) player.invuln--;
+
+    state.spawnTimer++;
+    if (state.spawnTimer >= state.spawnInterval) {
+      state.spawnTimer = 0;
+      spawnEnemy();
+    }
+
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.y += b.vy;
+      if (b.vx) b.x += b.vx;
+      if (b.y < -20 || b.x < -20 || b.x > W + 20) bullets.splice(i, 1);
+    }
+
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      const b = enemyBullets[i];
+      b.y += b.vy;
+      if (b.y > H + 20) enemyBullets.splice(i, 1);
+    }
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      e.x += e.vx;
+      e.y += e.vy;
+      if (e.x < e.w/2 || e.x > W - e.w/2) e.vx *= -1;
+
+      if (e.type === 'shooter') {
+        e.shootTimer--;
+        if (e.shootTimer <= 0 && e.y > 0 && e.y < H * 0.6) {
+          enemyBullets.push({ x: e.x, y: e.y + 14, vy: 5, w: 4, h: 10 });
+          e.shootTimer = 90 + Math.random() * 60;
+        }
+      }
+
+      if (e.y > H + 30) {
+        enemies.splice(i, 1);
+        continue;
+      }
+
+      for (let j = bullets.length - 1; j >= 0; j--) {
+        if (rectsCollide(e, bullets[j])) {
+          bullets.splice(j, 1);
+          e.hp--;
+          explode(e.x, e.y, '#fc6', 6);
+          if (e.hp <= 0) {
+            explode(e.x, e.y, '#f84', 18);
+            enemies.splice(i, 1);
+            state.score += e.type === 'shooter' ? 30 : 10;
+            const newLevel = Math.floor(state.score / 200) + 1;
+            if (newLevel !== state.level) {
+              state.level = newLevel;
+              state.spawnInterval = Math.max(20, 60 - state.level * 4);
+            }
+            updateHUD();
+          }
+          break;
+        }
+      }
+
+      if (player.invuln === 0 && rectsCollide(e, player)) {
+        explode(e.x, e.y, '#f84', 18);
+        enemies.splice(i, 1);
+        hitPlayer();
+      }
+    }
+
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      if (player.invuln === 0 && rectsCollide(enemyBullets[i], player)) {
+        enemyBullets.splice(i, 1);
+        hitPlayer();
+      }
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy;
+      p.vx *= 0.96; p.vy *= 0.96;
+      p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function hitPlayer() {
+    state.lives--;
+    player.invuln = 90;
+    explode(player.x, player.y, '#6df', 22);
+    updateHUD();
+    if (state.lives <= 0) gameOver();
+  }
+
+  function gameOver() {
+    state.running = false;
+    overlayTitle.textContent = '게임 오버';
+    overlay.querySelector('p').innerHTML = `최종 점수: <b>${state.score}</b> &nbsp;·&nbsp; 레벨 ${state.level}`;
+    startBtn.textContent = '다시 시작';
+    overlay.classList.remove('hidden');
+  }
+
+  function togglePause() {
+    state.paused = !state.paused;
+    if (state.paused) {
+      overlayTitle.textContent = '일시정지';
+      overlay.querySelector('p').textContent = 'P 키를 눌러 계속하기';
+      startBtn.textContent = '계속';
+      overlay.classList.remove('hidden');
+    } else {
+      overlay.classList.add('hidden');
+    }
+  }
+
+  function drawShip(x, y, w, h, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y - h/2);
+    ctx.lineTo(x + w/2, y + h/2);
+    ctx.lineTo(x, y + h/4);
+    ctx.lineTo(x - w/2, y + h/2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x - 2, y - 4, 4, 8);
+  }
+
+  function drawEnemy(e) {
+    if (e.type === 'shooter') {
+      ctx.fillStyle = '#f48';
+      ctx.beginPath();
+      ctx.moveTo(e.x, e.y + e.h/2);
+      ctx.lineTo(e.x + e.w/2, e.y - e.h/2);
+      ctx.lineTo(e.x - e.w/2, e.y - e.h/2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ff0';
+      ctx.fillRect(e.x - 3, e.y - 3, 6, 6);
+    } else {
+      ctx.fillStyle = '#8f6';
+      ctx.beginPath();
+      ctx.moveTo(e.x, e.y + e.h/2);
+      ctx.lineTo(e.x + e.w/2, e.y);
+      ctx.lineTo(e.x, e.y - e.h/2);
+      ctx.lineTo(e.x - e.w/2, e.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#063';
+      ctx.fillRect(e.x - 4, e.y - 2, 8, 4);
+    }
+  }
+
+  function render() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#fff';
+    for (const s of state.stars) {
+      ctx.globalAlpha = Math.min(1, s.s / 1.5);
+      ctx.fillRect(s.x, s.y, s.s, s.s);
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#6df';
+    for (const b of bullets) {
+      ctx.fillRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
+    }
+
+    ctx.fillStyle = '#f66';
+    for (const b of enemyBullets) {
+      ctx.fillRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
+    }
+
+    for (const e of enemies) drawEnemy(e);
+
+    if (state.running) {
+      const blink = player.invuln > 0 && Math.floor(player.invuln / 6) % 2 === 0;
+      if (!blink) drawShip(player.x, player.y, player.w, player.h, '#6df');
+    }
+
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life / 50);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - 2, p.y - 2, 3, 3);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function loop() {
+    update();
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  startBtn.addEventListener('click', () => {
+    if (state.paused) {
+      state.paused = false;
+      overlay.classList.add('hidden');
+      return;
+    }
+    reset();
+    state.running = true;
+    overlay.classList.add('hidden');
+  });
+
+  loop();
+})();
+</script>
+</body>
+</html>
