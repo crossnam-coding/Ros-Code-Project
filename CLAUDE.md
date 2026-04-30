@@ -9,7 +9,7 @@ project or to "publish/deploy" it, the default workflow is:
 2. Open a PR (or fast-forward) into `main`
 3. Confirm `main` contains the latest `index.html` at the repo root
 4. Tell the user to enable GitHub Pages: **Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `/ (root)` → Save**
-5. Provide the resulting URL: `https://crossnam-coding.github.io/ros-code-project/`
+5. Provide the resulting URL: `https://crossnam-coding.github.io/Ros-Code-Project/` (NOTE: case-sensitive — must match the repo name `Ros-Code-Project` exactly, not lowercase)
 
 Do not suggest "open the file locally" as the primary option unless the user
 explicitly asks for a local-only run. GitHub Pages is the preferred path.
