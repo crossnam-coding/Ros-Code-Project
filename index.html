@@ -98,6 +98,7 @@ tr.me td{color:#ff6;font-weight:bold}
 <script>
 (()=>{
 const cv=document.getElementById('game'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
+let pxScale=1;
 const $=id=>document.getElementById(id);
 const scoreEl=$('score'),lvlEl=$('level'),livesEl=$('lives'),gTxt=$('gaugeTxt'),gBar=$('gaugeBar').firstElementChild;
 const sBomb=$('sBomb'),sShield=$('sShield'),sHeal=$('sHeal'),coinsEl=$('coins'),comboEl=$('combo'),achvEl=$('achv');
@@ -721,6 +722,7 @@ function drawItem(it){
   ctx.textAlign='start';ctx.textBaseline='alphabetic';ctx.lineWidth=1;
 }
 function render(){
+  ctx.setTransform(pxScale,0,0,pxScale,0,0);
   ctx.drawImage(nebulaCanvas,0,0);
   let sx=0,sy=0;if(S.screenShake>0){sx=(Math.random()-.5)*S.screenShake;sy=(Math.random()-.5)*S.screenShake;ctx.save();ctx.translate(sx,sy)}
   // stars (3 parallax layers)
@@ -883,11 +885,16 @@ renderRank();
 rankBox.classList.remove('hidden');
 
 function fitGame(){
-  const wrap=document.getElementById('wrap');
-  const s=Math.min(window.innerWidth/602,window.innerHeight/722,1.6);
-  wrap.style.transformOrigin='top center';
-  wrap.style.transform=`scale(${s})`;
-  wrap.style.marginBottom=`${Math.round(720*(s-1))}px`;
+  const cv=document.getElementById('game');
+  const baseW=600, baseH=720;
+  const cssScale=Math.min(window.innerWidth/baseW,window.innerHeight/baseH,1.6);
+  const dpr=Math.max(1,window.devicePixelRatio||1);
+  pxScale=cssScale*dpr;
+  cv.width=Math.round(baseW*pxScale);
+  cv.height=Math.round(baseH*pxScale);
+  cv.style.width=Math.round(baseW*cssScale)+'px';
+  cv.style.height=Math.round(baseH*cssScale)+'px';
+  ctx.setTransform(pxScale,0,0,pxScale,0,0);
 }
 window.addEventListener('resize',fitGame);
 fitGame();
