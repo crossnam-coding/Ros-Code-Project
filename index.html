@@ -112,6 +112,7 @@ const drones=[];
 const bossBar=$('bossBar'),bossBarFill=bossBar.firstElementChild,buffsEl=$('buffs'),flashEl=$('flash');
 const overlay=$('overlay'),title=$('title'),intro=$('intro'),rankBox=$('rankBox'),nameBox=$('nameBox'),nameInput=$('nameInput'),startBtn=$('startBtn');
 const RANK_KEY='spaceShooterScores';
+const STAGE_LEN=15;
 const keys={};
 let pendingScore=null;
 window.addEventListener('keydown',e=>{
@@ -160,7 +161,6 @@ function reset(){S.score=0;S.level=1;S.lives=3;S.maxLives=5;S.spawnTimer=0;S.spa
 function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent='S'+getStage()+'·'+S.level;livesEl.textContent=S.lives;gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';sBomb.textContent=P.bombs;sShield.textContent=P.shields;sHeal.textContent=P.heals;coinsEl.textContent=META.coins+S.sessionCoins;let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';buffsEl.textContent=b;if(S.combo>=3){const m=comboMult();comboEl.style.color=m>=5?'#f6f':m>=3?'#ff6':'#cf6';comboEl.style.fontSize=(14+Math.min(20,S.combo))+'px';comboEl.textContent='COMBO '+S.combo+' ×'+m}else{comboEl.textContent=''}}
 function flash(t,c='#ff6'){flashEl.textContent=t;flashEl.style.color=c;flashEl.style.opacity=1;setTimeout(()=>flashEl.style.opacity=0,800)}
 function togglePause(){S.paused=!S.paused;if(S.paused){title.textContent='일시정지';intro.classList.add('hidden');rankBox.classList.add('hidden');nameBox.classList.add('hidden');startBtn.textContent='계속';overlay.classList.remove('hidden')}else{overlay.classList.add('hidden')}}
-const STAGE_LEN=15;
 function getStage(){return Math.floor((S.level-1)/STAGE_LEN)+1}
 
 // ===== META PROGRESSION =====
