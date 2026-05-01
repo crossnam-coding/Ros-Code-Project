@@ -117,7 +117,7 @@ const bossBar=$('bossBar'),bossBarFill=bossBar.firstElementChild,buffsEl=$('buff
 const overlay=$('overlay'),title=$('title'),intro=$('intro'),rankBox=$('rankBox'),nameBox=$('nameBox'),nameInput=$('nameInput'),startBtn=$('startBtn');
 const RANK_KEY='spaceShooterScores';
 const STAGE_LEN=15;
-function scoreToLevel(s){let lv=1,need=0;while(lv<300){const cost=250+(lv-1)*40;if(s<need+cost)return lv;need+=cost;lv++}return lv}
+function scoreToLevel(s){let lv=1,need=0;while(lv<300){const cost=Math.floor(220*Math.pow(1.07,lv-1));if(s<need+cost)return lv;need+=cost;lv++}return lv}
 const keys={};
 let pendingScore=null;
 window.addEventListener('keydown',e=>{
@@ -589,12 +589,27 @@ function killEnemy(i){
   if(e.gold||Math.random()<e.t.drop)dropItem(e.x,e.y);
   enemies.splice(i,1);
   META.stats.kills++;
+  const oldLv=S.level;
   const newLv=scoreToLevel(S.score);
-  if(newLv!==S.level){
+  if(newLv>oldLv){
     S.level=newLv;S.spawnInt=Math.max(18,55-S.level*2);
     flash('LEVEL '+S.level+' UP!','#ff6');SFX.levelup();
-    if(S.lives<(S.maxLives||5))S.lives++;
-    if(S.level%3===0&&P.wLv<10){P.wLv++;flash('무기 LV'+P.wLv,'#fc6')}
+    if(S.lives<(S.maxLives||5))S.lives++;else S.score+=30*(newLv-oldLv);
+    S.scoreMul*=Math.pow(1.015,newLv-oldLv);
+    const tw=Math.min(10,1+Math.floor(newLv/3));
+    if(P.wLv<tw){P.wLv=tw;flash('무기 LV'+P.wLv,'#fc6')}
+    if(Math.floor(newLv/5)>Math.floor(oldLv/5)){
+      const bs=[
+        ()=>{if(P.bombs<CAP.B){P.bombs++;bigFlash('🎁 보너스<br><span style="font-size:30px">💣 폭탄 +1</span>','#f63');return 1}},
+        ()=>{if(P.shields<CAP.S){P.shields++;bigFlash('🎁 보너스<br><span style="font-size:30px">🛡️ 실드 +1</span>','#9cf');return 1}},
+        ()=>{if(S.lives<(S.maxLives||5)){S.lives=S.maxLives||5;bigFlash('🎁 보너스<br><span style="font-size:30px">💖 완전 회복</span>','#f88');return 1}},
+        ()=>{P.gauge=Math.min(100,P.gauge+50);bigFlash('🎁 보너스<br><span style="font-size:30px">⚡ 게이지 +50%</span>','#cf6');return 1},
+        ()=>{S.scoreMul*=1.08;bigFlash('🎁 보너스<br><span style="font-size:30px">💎 점수 ×1.08</span>','#fd4');return 1},
+        ()=>{if(P.heals<CAP.H){P.heals++;bigFlash('🎁 보너스<br><span style="font-size:30px">❤️ 회복 +1</span>','#f88');return 1}}
+      ];
+      bs.sort(()=>Math.random()-.5);
+      for(const b of bs)if(b())break;
+    }
   }
   if(META.stats.kills%50===0)checkAchievements();
   updateHUD();
