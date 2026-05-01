@@ -123,8 +123,8 @@ window.addEventListener('keydown',e=>{
 
 // ===== AUDIO =====
 let actx=null,masterGain=null,muted=false;
-function audioInit(){if(actx)return;try{actx=new (window.AudioContext||window.webkitAudioContext)();masterGain=actx.createGain();masterGain.gain.value=0.25;masterGain.connect(actx.destination)}catch(e){actx=null}}
-function audioResume(){if(actx&&actx.state==='suspended')actx.resume()}
+function audioInit(){if(actx)return;try{actx=new (window.AudioContext||window.webkitAudioContext)();masterGain=actx.createGain();masterGain.gain.value=0.55;masterGain.connect(actx.destination)}catch(e){actx=null}}
+function audioResume(){if(actx&&actx.state==='suspended')actx.resume().catch(()=>{})}
 function tone(freq,dur,type='square',vol=1,slide=0){if(!actx||muted)return;const o=actx.createOscillator(),g=actx.createGain(),n=actx.currentTime;o.type=type;o.frequency.setValueAtTime(freq,n);if(slide)try{o.frequency.exponentialRampToValueAtTime(Math.max(20,freq+slide),n+dur)}catch(e){}g.gain.setValueAtTime(0.0001,n);g.gain.linearRampToValueAtTime(vol,n+0.005);g.gain.exponentialRampToValueAtTime(0.0001,n+dur);o.connect(g);g.connect(masterGain);o.start(n);o.stop(n+dur+0.01)}
 function noise(dur,vol=1,freq=1000){if(!actx||muted)return;const len=Math.max(1,Math.floor(actx.sampleRate*dur)),buf=actx.createBuffer(1,len,actx.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);const src=actx.createBufferSource();src.buffer=buf;const f=actx.createBiquadFilter();f.type='lowpass';f.frequency.value=freq;const g=actx.createGain();g.gain.value=vol;src.connect(f);f.connect(g);g.connect(masterGain);src.start()}
 const _last={};
@@ -153,7 +153,8 @@ function reset(){S.score=0;S.level=1;S.lives=3;S.spawnTimer=0;S.spawnInt=60;S.sh
 function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent='S'+getStage()+'·'+S.level;livesEl.textContent=S.lives;gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';sBomb.textContent=P.bombs;sShield.textContent=P.shields;sHeal.textContent=P.heals;coinsEl.textContent=META.coins+S.sessionCoins;let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';buffsEl.textContent=b;if(S.combo>=3){const m=comboMult();comboEl.style.color=m>=5?'#f6f':m>=3?'#ff6':'#cf6';comboEl.style.fontSize=(14+Math.min(20,S.combo))+'px';comboEl.textContent='COMBO '+S.combo+' ×'+m}else{comboEl.textContent=''}}
 function flash(t,c='#ff6'){flashEl.textContent=t;flashEl.style.color=c;flashEl.style.opacity=1;setTimeout(()=>flashEl.style.opacity=0,800)}
 function togglePause(){S.paused=!S.paused;if(S.paused){title.textContent='일시정지';intro.classList.add('hidden');rankBox.classList.add('hidden');nameBox.classList.add('hidden');startBtn.textContent='계속';overlay.classList.remove('hidden')}else{overlay.classList.add('hidden')}}
-function getStage(){return Math.floor((S.level-1)/10)+1}
+const STAGE_LEN=15;
+function getStage(){return Math.floor((S.level-1)/STAGE_LEN)+1}
 
 // ===== META PROGRESSION =====
 const COIN_KEY='spaceShooterCoins',UPG_KEY='spaceShooterUpg',ACHV_KEY='spaceShooterAchv',STAT_KEY='spaceShooterStats';
@@ -347,7 +348,7 @@ function update(){
     S.spawnTimer++;
     if(S.spawnTimer>=S.spawnInt){S.spawnTimer=0;spawnEnemy()}
     // boss every 5 levels
-    if(S.level>=(S.bossesDefeated+1)*10)spawnBoss();
+    if(S.level>=(S.bossesDefeated+1)*STAGE_LEN)spawnBoss();
   }
 
   // bullets
@@ -467,7 +468,7 @@ function killEnemy(i){
   if(e.gold||Math.random()<e.t.drop)dropItem(e.x,e.y);
   enemies.splice(i,1);
   META.stats.kills++;
-  const newLv=Math.floor(S.score/200)+1;
+  const newLv=Math.floor(S.score/300)+1;
   if(newLv!==S.level){
     S.level=newLv;S.spawnInt=Math.max(20,60-S.level*3);
     flash('LEVEL '+S.level+' UP!','#ff6');SFX.levelup();
@@ -634,6 +635,7 @@ nameInput.addEventListener('keydown',e=>{if(e.key==='Enter')startBtn.click()});
 
 startBtn.addEventListener('click',()=>{
   audioInit();audioResume();
+  SFX.pickup();
   if(S.paused){S.paused=false;overlay.classList.add('hidden');return}
   if(pendingScore){
     const name=(nameInput.value||'???').trim().toUpperCase().slice(0,8);
