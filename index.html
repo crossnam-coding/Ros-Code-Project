@@ -265,6 +265,12 @@ const REWARDS=[
   {id:'fullHeal',n:'💖 완전 회복',d:'생명 가득',cond:()=>true,apply:()=>{S.lives=S.maxLives||5}},
   {id:'gaugeFull',n:'⚡ 특수기 즉시 충전',d:'게이지 100%',cond:()=>true,apply:()=>{P.gauge=100}}
 ];
+function autoReward(){
+  const valid=REWARDS.filter(r=>r.cond());
+  if(!valid.length)return;
+  const r=valid[Math.floor(Math.random()*valid.length)];
+  r.apply();flash('🎁 보상: '+r.n,'#fc6');SFX.levelup();updateHUD();
+}
 function showRewardPicker(){
   S.paused=true;
   const valid=REWARDS.filter(r=>r.cond());
@@ -535,7 +541,7 @@ function update(){
       S.nextBossLevel=Math.max(S.nextBossLevel+STAGE_LEN,S.level+STAGE_LEN);
       checkAchievements();
       updateHUD();
-      setTimeout(showRewardPicker,900);
+      setTimeout(autoReward,900);
     }
   }
 
