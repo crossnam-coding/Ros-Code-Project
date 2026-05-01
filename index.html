@@ -195,7 +195,6 @@ function _genNoise(dur,vol,freq){
   }
   return _wavCache[key]=_wavURI(s,sr);
 }
-const _noop=()=>{};
 function _play(uri){
   let pool=_audioPool[uri];
   if(!pool){
@@ -203,23 +202,16 @@ function _play(uri){
     for(let i=0;i<_POOL;i++){const a=new Audio(uri);a.volume=1.0;pool.items.push(a)}
     _audioPool[uri]=pool;
   }
-  // Find a free (paused/ended) element. If all are still playing, drop this
-  // trigger rather than paying for currentTime=0 + play() to restart.
-  let a=null;
-  for(let i=0;i<_POOL;i++){
-    const idx=(pool.idx+i)%_POOL,el=pool.items[idx];
-    if(el.paused||el.ended){a=el;pool.idx=(idx+1)%_POOL;break}
-  }
-  if(!a)return;
-  if(a.currentTime>0)a.currentTime=0;
-  const p=a.play();if(p&&p.catch)p.catch(_noop);
+  const a=pool.items[pool.idx];pool.idx=(pool.idx+1)%_POOL;
+  try{a.currentTime=0}catch(e){}
+  const p=a.play();if(p&&p.catch)p.catch(()=>{});
 }
 function tone(freq,dur,type='square',vol=1,slide=0){if(muted)return;_play(_genTone(freq,dur,type,vol,slide))}
 function noise(dur,vol=1,freq=1000){if(muted)return;_play(_genNoise(dur,vol,freq))}
 const _last={};
 function thr(name,ms,fn){const t=Date.now();if((_last[name]||0)+ms<t){_last[name]=t;fn()}}
 const SFX={
-  shoot:()=>thr('s',70,()=>{tone(280,0.05,'triangle',0.14,80);tone(560,0.03,'sine',0.06,40)}),
+  shoot:()=>thr('s',45,()=>{tone(280,0.05,'triangle',0.14,80);tone(560,0.03,'sine',0.06,40)}),
   hit:()=>thr('h',25,()=>tone(180,0.05,'square',0.22,-40)),
   explode:()=>thr('e',40,()=>{noise(0.18,0.4,900);tone(120,0.15,'sawtooth',0.2,-50)}),
   damage:()=>{tone(150,0.18,'sawtooth',0.4,-80);noise(0.25,0.35,500)},
