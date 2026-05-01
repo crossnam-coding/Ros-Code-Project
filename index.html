@@ -20,6 +20,8 @@ canvas{display:block;background:#000}
 #bossBar>div{background:linear-gradient(90deg,#f33,#f80)}
 #buffs{font-size:11px;color:#ff6;margin-top:2px;height:14px}
 #flash{position:absolute;left:0;right:0;top:40%;text-align:center;font-size:30px;color:#ff6;text-shadow:0 0 12px #ff0;pointer-events:none;opacity:0;transition:opacity .3s;font-weight:bold;letter-spacing:3px}
+#bigFlash{position:absolute;left:0;right:0;top:25%;text-align:center;font-size:38px;font-weight:bold;text-shadow:0 0 20px currentColor,0 0 40px currentColor;pointer-events:none;opacity:0;transition:opacity .5s,transform .5s;letter-spacing:2px;line-height:1.3;transform:scale(.5);z-index:10}
+#bigFlash.show{opacity:1;transform:scale(1)}
 #overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.78);text-align:center;padding:20px;overflow-y:auto}
 #overlay h2{font-size:30px;color:#6df;text-shadow:0 0 10px #6df;margin-bottom:12px}
 #overlay p{margin:5px 0;line-height:1.5;font-size:14px}
@@ -54,6 +56,7 @@ tr.me td{color:#ff6;font-weight:bold}
 <div id="achv" style="position:absolute;right:8px;top:160px;width:200px;text-align:right;pointer-events:none"></div>
 </div>
 <div id="flash"></div>
+<div id="bigFlash"></div>
 <div id="overlay">
 <h2 id="title">스페이스 슈터</h2>
 <div id="intro">
@@ -113,8 +116,8 @@ const drones=[];
 const bossBar=$('bossBar'),bossBarFill=bossBar.firstElementChild,buffsEl=$('buffs'),flashEl=$('flash');
 const overlay=$('overlay'),title=$('title'),intro=$('intro'),rankBox=$('rankBox'),nameBox=$('nameBox'),nameInput=$('nameInput'),startBtn=$('startBtn');
 const RANK_KEY='spaceShooterScores';
-const STAGE_LEN=20;
-function scoreToLevel(s){let lv=1,need=0;while(lv<300){const cost=400+(lv-1)*45;if(s<need+cost)return lv;need+=cost;lv++}return lv}
+const STAGE_LEN=15;
+function scoreToLevel(s){let lv=1,need=0;while(lv<300){const cost=250+(lv-1)*40;if(s<need+cost)return lv;need+=cost;lv++}return lv}
 const keys={};
 let pendingScore=null;
 window.addEventListener('keydown',e=>{
@@ -167,6 +170,8 @@ for(let i=0;i<90;i++)S.stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.ra
 function reset(){S.score=0;S.level=1;S.lives=3;S.maxLives=5;S.spawnTimer=0;S.spawnInt=60;S.shootCD=0;S.boss=null;S.bossesDefeated=0;S.nextBossLevel=STAGE_LEN;S.laserTimer=0;S.screenShake=0;S.combo=0;S.comboTimer=0;S.scoreMul=1;S.coinMul=1;S.goldenSpawned=0;S.sessionCoins=0;P.x=W/2;P.y=H-70;P.invuln=0;P.wLv=1;P.fireBoost=0;P.shield=0;P.mult=0;P.gauge=0;P.bombs=0;P.shields=0;P.heals=0;P.speed=5;P.rear=false;P.pierce=false;P.permRapid=false;P.gaugeMul=1;bullets.length=ebullets.length=enemies.length=items.length=parts.length=popups.length=drones.length=shocks.length=0;S.flashOverlay=0;bossBar.style.display='none';META.continued=false;applyUpgrades();const d=getDaily();d.mod(S);dailyEl.textContent='오늘의 챌린지: '+d.n;updateHUD()}
 function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent='S'+getStage()+'·'+S.level;const ml=S.maxLives||5;livesEl.innerHTML='<span style="color:#f66;text-shadow:0 0 4px #f00">'+'♥'.repeat(Math.max(0,S.lives))+'</span><span style="color:#444">'+'♥'.repeat(Math.max(0,ml-S.lives))+'</span>';gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';sBomb.textContent=P.bombs;sShield.textContent=P.shields;sHeal.textContent=P.heals;coinsEl.textContent=META.coins+S.sessionCoins;let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';buffsEl.textContent=b;if(S.combo>=3){const m=comboMult();comboEl.style.color=m>=5?'#f6f':m>=3?'#ff6':'#cf6';comboEl.style.fontSize=(14+Math.min(20,S.combo))+'px';comboEl.textContent='COMBO '+S.combo+' ×'+m}else{comboEl.textContent=''}}
 function flash(t,c='#ff6'){flashEl.textContent=t;flashEl.style.color=c;flashEl.style.opacity=1;setTimeout(()=>flashEl.style.opacity=0,800)}
+const bigFlashEl=document.getElementById('bigFlash');
+function bigFlash(t,c='#fc6'){bigFlashEl.innerHTML=t;bigFlashEl.style.color=c;bigFlashEl.classList.add('show');setTimeout(()=>bigFlashEl.classList.remove('show'),2400)}
 function togglePause(){S.paused=!S.paused;if(S.paused){title.textContent='일시정지';intro.classList.add('hidden');rankBox.classList.add('hidden');nameBox.classList.add('hidden');startBtn.textContent='계속';overlay.classList.remove('hidden')}else{overlay.classList.add('hidden')}}
 function getStage(){return Math.floor((S.level-1)/STAGE_LEN)+1}
 
@@ -269,7 +274,9 @@ function autoReward(){
   const valid=REWARDS.filter(r=>r.cond());
   if(!valid.length)return;
   const r=valid[Math.floor(Math.random()*valid.length)];
-  r.apply();flash('🎁 보상: '+r.n,'#fc6');SFX.levelup();updateHUD();
+  r.apply();
+  bigFlash('🎁 보스 보상<br><span style="font-size:32px">'+r.n+'</span><br><span style="font-size:18px;opacity:.85">'+r.d+'</span>','#fc6');
+  SFX.levelup();updateHUD();
 }
 function showRewardPicker(){
   S.paused=true;
@@ -353,19 +360,20 @@ function dropItem(x,y){
   for(;i<weights.length;i++){r-=weights[i];if(r<=0)break}
   items.push({x,y,vy:2.4,type:types[i],phase:0});
 }
+const CAP={B:5,S:3,H:5};
 function applyItem(t){
   SFX.pickup();
   if(t==='W'){if(P.wLv<5){P.wLv++;flash('무기 강화 LV'+P.wLv,'#fc6')}else{S.score+=100;flash('+100','#fc6')}}
   else if(t==='R'){P.fireBoost=600;flash('연사 모드','#f9f')}
-  else if(t==='S'){P.shields++;flash('🛡️ 실드 +1 [3]','#9cf')}
-  else if(t==='H'){P.heals++;flash('❤️ 회복 +1 [4]','#f88')}
+  else if(t==='S'){if(P.shields<CAP.S){P.shields++;flash('🛡️ 실드 +1 [3]','#9cf')}else{S.score+=80;flash('🛡️ MAX +80','#9cf')}}
+  else if(t==='H'){if(P.heals<CAP.H){P.heals++;flash('❤️ 회복 +1 [4]','#f88')}else{S.score+=80;flash('❤️ MAX +80','#f88')}}
   else if(t==='M'){P.mult=600;flash('점수 ×2','#fd4')}
   else if(t==='G'){P.gauge=Math.min(100,P.gauge+35);flash('+게이지','#cf6')}
-  else if(t==='B'){P.bombs++;flash('💣 폭탄 +1 [2]','#f63')}
+  else if(t==='B'){if(P.bombs<CAP.B){P.bombs++;flash('💣 폭탄 +1 [2]','#f63')}else{S.score+=80;flash('💣 MAX +80','#f63')}}
   updateHUD();
 }
 function useBomb(){if(P.bombs<=0)return;P.bombs--;SFX.bomb();bombClear();flash('💥 폭탄!','#f63');updateHUD()}
-function useShield(){if(P.shields<=0||P.shield>0)return;P.shields--;SFX.shield();P.shield=600;flash('🛡️ 실드 ON','#9cf');updateHUD()}
+function useShield(){if(P.shields<=0||P.shield>0)return;P.shields--;SFX.shield();P.shield=3;flash('🛡️ 실드 ON (3히트)','#9cf');updateHUD()}
 function useHeal(){if(P.heals<=0)return;P.heals--;SFX.heal();if(S.lives<5){S.lives++;flash('+1 LIFE','#f88')}else{S.score+=200;flash('+200','#f88')}updateHUD()}
 function bombClear(){
   addShock(P.x,P.y,'#f63',900,40);
@@ -429,7 +437,6 @@ function update(){
   if(S.shootCD>0)S.shootCD--;
   if(P.invuln>0)P.invuln--;
   if(P.fireBoost>0){P.fireBoost--;if(P.fireBoost===0)updateHUD()}
-  if(P.shield>0){P.shield--;if(P.shield===0)updateHUD()}
   if(P.mult>0){P.mult--;if(P.mult===0)updateHUD()}
   if(S.laserTimer>0)S.laserTimer--;
   if(S.screenShake>0)S.screenShake--;
@@ -442,7 +449,7 @@ function update(){
   // spawn (no regular enemies during boss)
   if(!S.boss){
     S.spawnTimer++;
-    if(S.spawnTimer>=S.spawnInt){S.spawnTimer=0;const st=getStage();const wave=st>=3?Math.min(3,1+Math.floor((st-2)/2)):1;for(let w=0;w<wave;w++)spawnEnemy()}
+    if(S.spawnTimer>=S.spawnInt){S.spawnTimer=0;const st=getStage();const wave=st<=1?1:st===2?2:3;for(let w=0;w<wave;w++)spawnEnemy()}
     // boss every 5 levels
     if(S.level>=S.nextBossLevel)spawnBoss();
   }
@@ -481,7 +488,7 @@ function update(){
       }
     }
     if(P.invuln===0&&P.shield===0&&S.running&&rect(e,P)){explode(e.x,e.y,'#f84',18);enemies.splice(i,1);hitPlayer()}
-    else if(P.shield>0&&rect(e,P)){explode(e.x,e.y,'#9cf',12);enemies.splice(i,1);S.score+=Math.floor(e.t.score*(P.mult>0?2:1));updateHUD()}
+    else if(P.shield>0&&rect(e,P)){explode(e.x,e.y,'#9cf',12);enemies.splice(i,1);S.score+=Math.floor(e.t.score*(P.mult>0?2:1));P.shield--;if(P.shield<=0)flash('🛡️ 실드 깨짐','#9cf');updateHUD()}
   }
 
   // boss
@@ -548,7 +555,7 @@ function update(){
   // enemy bullets vs player
   for(let i=ebullets.length-1;i>=0;i--){
     if(P.invuln===0&&P.shield===0&&rect(ebullets[i],P)){ebullets.splice(i,1);hitPlayer()}
-    else if(P.shield>0&&rect(ebullets[i],P)){ebullets.splice(i,1);explode(P.x,P.y,'#9cf',6)}
+    else if(P.shield>0&&rect(ebullets[i],P)){ebullets.splice(i,1);explode(P.x,P.y,'#9cf',6);P.shield--;if(P.shield<=0)flash('🛡️ 실드 깨짐','#9cf');updateHUD()}
   }
 
   // items
