@@ -136,6 +136,8 @@ syncMuteIcon();
 if(muteIcon)muteIcon.addEventListener('click',e=>{e.stopPropagation();audioInit();audioResume();toggleMute();if(!muted)setTimeout(()=>SFX.pickup(),50)});
 function audioInit(){if(actx)return;try{actx=new (window.AudioContext||window.webkitAudioContext)();masterGain=actx.createGain();masterGain.gain.value=0.55;masterGain.connect(actx.destination)}catch(e){actx=null}}
 function audioResume(){if(actx&&actx.state==='suspended')actx.resume().catch(()=>{})}
+window.addEventListener('pointerdown',()=>{audioInit();audioResume()},{capture:true});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)audioResume()});
 function tone(freq,dur,type='square',vol=1,slide=0){if(!actx||muted)return;const o=actx.createOscillator(),g=actx.createGain(),n=actx.currentTime;o.type=type;o.frequency.setValueAtTime(freq,n);if(slide)try{o.frequency.exponentialRampToValueAtTime(Math.max(20,freq+slide),n+dur)}catch(e){}g.gain.setValueAtTime(0.0001,n);g.gain.linearRampToValueAtTime(vol,n+0.005);g.gain.exponentialRampToValueAtTime(0.0001,n+dur);o.connect(g);g.connect(masterGain);o.start(n);o.stop(n+dur+0.01)}
 function noise(dur,vol=1,freq=1000){if(!actx||muted)return;const len=Math.max(1,Math.floor(actx.sampleRate*dur)),buf=actx.createBuffer(1,len,actx.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);const src=actx.createBufferSource();src.buffer=buf;const f=actx.createBiquadFilter();f.type='lowpass';f.frequency.value=freq;const g=actx.createGain();g.gain.value=vol;src.connect(f);f.connect(g);g.connect(masterGain);src.start()}
 const _last={};
@@ -397,7 +399,7 @@ function applyItem(t){
 }
 function useBomb(){if(P.bombs<=0)return;P.bombs--;SFX.bomb();bombClear();flash('💥 폭탄!','#f63');updateHUD()}
 function useShield(){if(P.shields<=0||P.shield>0)return;P.shields--;SFX.shield();P.shield=3;flash('🛡️ 실드 ON (3히트)','#9cf');updateHUD()}
-function useHeal(){if(P.heals<=0)return;P.heals--;SFX.heal();if(S.lives<5){S.lives++;flash('+1 LIFE','#f88')}else{S.score+=200;flash('+200','#f88')}updateHUD()}
+function useHeal(){if(P.heals<=0)return;P.heals--;SFX.heal();const ml=S.maxLives||5;if(S.lives<ml){S.lives++;flash('+1 LIFE','#f88')}else{S.score+=200;flash('+200','#f88')}updateHUD()}
 function bombClear(){
   addShock(P.x,P.y,'#f63',900,40);
   addShock(P.x,P.y,'#fc6',650,32);
@@ -617,7 +619,7 @@ function killEnemy(i){
   if(newLv>oldLv){
     S.level=newLv;S.spawnInt=Math.max(18,55-S.level*2);
     flash('LEVEL '+S.level+' UP!','#ff6');SFX.levelup();
-    if(S.lives<(S.maxLives||5))S.lives++;else S.score+=30*(newLv-oldLv);
+    S.score+=30*(newLv-oldLv);
     S.scoreMul*=Math.pow(1.015,newLv-oldLv);
     const tw=Math.min(10,1+Math.floor(newLv/3));
     if(P.wLv<tw){P.wLv=tw;flash('무기 LV'+P.wLv,'#fc6')}
