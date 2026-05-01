@@ -341,7 +341,7 @@ function spawnBoss(){
 }
 function dropItem(x,y){
   const types=['W','R','S','H','M','G','B'];
-  const weights=[18,18,15,10,12,15,8];
+  const weights=[18,16,6,12,14,16,10];
   const total=weights.reduce((a,b)=>a+b,0);
   let r=Math.random()*total,i=0;
   for(;i<weights.length;i++){r-=weights[i];if(r<=0)break}
@@ -481,7 +481,16 @@ function update(){
   // boss
   if(S.boss){
     const b=S.boss,bSt=b.stage;
-    if(b.y<60)b.y+=1;else{b.x+=b.vx;if(b.x<b.w/2+10||b.x>W-b.w/2-10)b.vx*=-1;b.weakX=Math.sin(b.phase*.05)*30;b.phase++;b.patternTimer--;
+    if(b.y<60)b.y+=1;else{
+      b.phase++;b.weakX=Math.sin(b.phase*.05)*30;
+      const sh=b.shape;
+      if(sh===0){b.x+=b.vx;if(b.x<b.w/2+10||b.x>W-b.w/2-10)b.vx*=-1}
+      else if(sh===1){const tt=b.phase*.013;b.x=W/2+Math.sin(tt)*(W*.4);b.y=100+Math.abs(Math.sin(tt*2))*60}
+      else if(sh===2){const tt=b.phase*.018;b.x=W/2+Math.cos(tt)*(W*.35);b.y=130+Math.sin(tt)*50}
+      else if(sh===3){if(b.tx===undefined||b.phase%160===0){b.tx=60+Math.random()*(W-120);b.ty=80+Math.random()*130}b.x+=(b.tx-b.x)*.06;b.y+=(b.ty-b.y)*.06}
+      else if(sh===4){b.x+=b.vx*1.4;if(b.x<b.w/2+10||b.x>W-b.w/2-10)b.vx*=-1;b.y=90+Math.sin(b.phase*.025)*70}
+      else{if(b.diveT===undefined)b.diveT=180;b.diveT--;if(b.diveT<=0){b.diving=!b.diving;b.diveT=b.diving?70:200}if(b.diving){b.x+=(P.x-b.x)*.04;b.y+=1.4;if(b.y>H*.5)b.diving=false}else{b.x+=b.vx*.7;if(b.x<b.w/2+10||b.x>W-b.w/2-10)b.vx*=-1;b.y+=(110-b.y)*.05}}
+      b.patternTimer--;
       const numPatterns=Math.min(3+Math.floor(bSt/2),5);
       if(b.patternTimer<=0){b.pattern=(b.pattern+1)%numPatterns;b.patternTimer=Math.max(60,120-bSt*8)}
       const fireInt=Math.max(8,16-bSt);
