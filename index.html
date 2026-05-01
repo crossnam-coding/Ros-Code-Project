@@ -509,6 +509,7 @@ function update(){
       S.boss=null;bossBar.style.display='none';
       checkAchievements();
       updateHUD();
+      setTimeout(showRewardPicker,900);
     }
   }
 
@@ -554,8 +555,7 @@ function killEnemy(i){
     S.level=newLv;S.spawnInt=Math.max(28,60-S.level*2);
     flash('LEVEL '+S.level+' UP!','#ff6');SFX.levelup();
     if(S.lives<(S.maxLives||5))S.lives++;
-    if(S.level%5===0)setTimeout(showRewardPicker,400);
-    else if(S.level%3===0&&P.wLv<10){P.wLv++;flash('무기 LV'+P.wLv,'#fc6')}
+    if(S.level%3===0&&P.wLv<10){P.wLv++;flash('무기 LV'+P.wLv,'#fc6')}
   }
   if(META.stats.kills%50===0)checkAchievements();
   updateHUD();
