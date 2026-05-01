@@ -56,7 +56,7 @@ tr.me td{color:#ff6;font-weight:bold}
 <div id="intro">
 <p>아이템을 모아 우주선을 강화하고, 게이지를 모아 특수기를 발사하세요!</p>
 <p><span class="key">←→↑↓</span> / <span class="key">WASD</span> 이동 · <span class="key">Space</span> 발사 · <span class="key">P</span> 일시정지</p>
-<p><span class="key">1</span> 특수기 · <span class="key">2</span> 폭탄 · <span class="key">3</span> 실드 · <span class="key">4</span> 회복</p>
+<p><span class="key">1</span> 특수기 · <span class="key">2</span> 폭탄 · <span class="key">3</span> 실드 · <span class="key">4</span> 회복 · <span class="key">M</span> 음소거</p>
 <div class="itemHelp">
 <span><b style="background:#fc6">W</b>무기↑</span>
 <span><b style="background:#f9f">R</b>연사</span>
@@ -89,8 +89,10 @@ const keys={};
 let pendingScore=null;
 window.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();keys[k]=true;
+  audioInit();audioResume();
   if([' ','arrowleft','arrowright','arrowup','arrowdown'].includes(k))e.preventDefault();
   if(k==='p'&&S.running)togglePause();
+  if(k==='m'){muted=!muted;flash(muted?'🔇 MUTE':'🔊 SOUND','#fff')}
   if(S.running&&!S.paused){
     if(k==='1'||k==='x')tryUseSpecial();
     else if(k==='2')useBomb();
@@ -98,6 +100,30 @@ window.addEventListener('keydown',e=>{
     else if(k==='4')useHeal();
   }
 });
+
+// ===== AUDIO =====
+let actx=null,masterGain=null,muted=false;
+function audioInit(){if(actx)return;try{actx=new (window.AudioContext||window.webkitAudioContext)();masterGain=actx.createGain();masterGain.gain.value=0.25;masterGain.connect(actx.destination)}catch(e){actx=null}}
+function audioResume(){if(actx&&actx.state==='suspended')actx.resume()}
+function tone(freq,dur,type='square',vol=1,slide=0){if(!actx||muted)return;const o=actx.createOscillator(),g=actx.createGain(),n=actx.currentTime;o.type=type;o.frequency.setValueAtTime(freq,n);if(slide)try{o.frequency.exponentialRampToValueAtTime(Math.max(20,freq+slide),n+dur)}catch(e){}g.gain.setValueAtTime(0.0001,n);g.gain.linearRampToValueAtTime(vol,n+0.005);g.gain.exponentialRampToValueAtTime(0.0001,n+dur);o.connect(g);g.connect(masterGain);o.start(n);o.stop(n+dur+0.01)}
+function noise(dur,vol=1,freq=1000){if(!actx||muted)return;const len=Math.max(1,Math.floor(actx.sampleRate*dur)),buf=actx.createBuffer(1,len,actx.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);const src=actx.createBufferSource();src.buffer=buf;const f=actx.createBiquadFilter();f.type='lowpass';f.frequency.value=freq;const g=actx.createGain();g.gain.value=vol;src.connect(f);f.connect(g);g.connect(masterGain);src.start()}
+const _last={};
+function thr(name,ms,fn){const t=Date.now();if((_last[name]||0)+ms<t){_last[name]=t;fn()}}
+const SFX={
+  shoot:()=>thr('s',30,()=>tone(900,0.05,'square',0.18,-500)),
+  hit:()=>thr('h',25,()=>tone(180,0.05,'square',0.22,-40)),
+  explode:()=>thr('e',40,()=>{noise(0.18,0.4,900);tone(120,0.15,'sawtooth',0.2,-50)}),
+  damage:()=>{tone(150,0.18,'sawtooth',0.4,-80);noise(0.25,0.35,500)},
+  pickup:()=>{tone(700,0.06,'sine',0.3);setTimeout(()=>tone(1050,0.08,'sine',0.25),60)},
+  special:()=>{tone(150,0.5,'sawtooth',0.45,1800);noise(0.5,0.35,2200)},
+  bomb:()=>{noise(0.6,0.7,400);tone(80,0.6,'sawtooth',0.5,-30)},
+  shield:()=>{tone(440,0.12,'sine',0.3);setTimeout(()=>tone(660,0.18,'sine',0.28),60)},
+  heal:()=>{[523,659,784].forEach((f,i)=>setTimeout(()=>tone(f,0.12,'sine',0.3),i*90))},
+  levelup:()=>{[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.1,'square',0.3),i*70))},
+  bossSpawn:()=>{noise(0.9,0.45,200);tone(70,0.9,'sawtooth',0.4);setTimeout(()=>tone(110,0.7,'sawtooth',0.3),300)},
+  bossDefeat:()=>{noise(0.6,0.7,600);for(let i=1;i<6;i++)setTimeout(()=>{noise(0.2,0.5,800);tone(200+i*40,0.15,'square',0.3)},i*120)},
+  gameover:()=>{[440,349,261,196].forEach((f,i)=>setTimeout(()=>tone(f,0.4,'triangle',0.4),i*220))}
+};
 window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
 const S={running:false,paused:false,score:0,level:1,lives:3,spawnTimer:0,spawnInt:60,shootCD:0,stars:[],boss:null,bossesDefeated:0,laserTimer:0,screenShake:0};
 const P={x:W/2,y:H-70,w:36,h:36,speed:5,invuln:0,wLv:1,fireBoost:0,shield:0,mult:0,gauge:0,bombs:0,shields:0,heals:0};
@@ -139,6 +165,7 @@ function spawnBoss(){
   const hp=120+stage*70+bn*20;
   S.boss={x:W/2,y:-80,w,h,hp,maxhp:hp,vx:2+stage*.25,phase:0,patternTimer:0,pattern:0,bn,stage,shape,weakX:0,weakY:30,name:BOSS_NAMES[(stage-1)%BOSS_NAMES.length]};
   bossBar.style.display='block';
+  SFX.bossSpawn();
   flash('보스 등장 — '+S.boss.name,'#f66');
 }
 function dropItem(x,y){
@@ -150,6 +177,7 @@ function dropItem(x,y){
   items.push({x,y,vy:1.5,type:types[i],phase:0});
 }
 function applyItem(t){
+  SFX.pickup();
   if(t==='W'){if(P.wLv<5){P.wLv++;flash('무기 강화 LV'+P.wLv,'#fc6')}else{S.score+=100;flash('+100','#fc6')}}
   else if(t==='R'){P.fireBoost=600;flash('연사 모드','#f9f')}
   else if(t==='S'){P.shields++;flash('🛡️ 실드 +1 [3]','#9cf')}
@@ -159,20 +187,20 @@ function applyItem(t){
   else if(t==='B'){P.bombs++;flash('💣 폭탄 +1 [2]','#f63')}
   updateHUD();
 }
-function useBomb(){if(P.bombs<=0)return;P.bombs--;bombClear();flash('💥 폭탄!','#f63');updateHUD()}
-function useShield(){if(P.shields<=0||P.shield>0)return;P.shields--;P.shield=600;flash('🛡️ 실드 ON','#9cf');updateHUD()}
-function useHeal(){if(P.heals<=0)return;P.heals--;if(S.lives<5){S.lives++;flash('+1 LIFE','#f88')}else{S.score+=200;flash('+200','#f88')}updateHUD()}
+function useBomb(){if(P.bombs<=0)return;P.bombs--;SFX.bomb();bombClear();flash('💥 폭탄!','#f63');updateHUD()}
+function useShield(){if(P.shields<=0||P.shield>0)return;P.shields--;SFX.shield();P.shield=600;flash('🛡️ 실드 ON','#9cf');updateHUD()}
+function useHeal(){if(P.heals<=0)return;P.heals--;SFX.heal();if(S.lives<5){S.lives++;flash('+1 LIFE','#f88')}else{S.score+=200;flash('+200','#f88')}updateHUD()}
 function bombClear(){
   for(const e of enemies){explode(e.x,e.y,'#f80',24);S.score+=Math.floor((e.t.score/2)*(P.mult>0?2:1))}
   enemies.length=0;ebullets.length=0;S.screenShake=20;updateHUD();
 }
 function tryUseSpecial(){
   if(P.gauge<100)return;
-  P.gauge=0;S.laserTimer=50;S.screenShake=12;flash('⚡ 메가 레이저','#ff0');updateHUD();
+  P.gauge=0;S.laserTimer=50;S.screenShake=12;SFX.special();flash('⚡ 메가 레이저','#ff0');updateHUD();
 }
 function shoot(){
   const cd=P.fireBoost>0?5:10;
-  if(S.shootCD>0)return;S.shootCD=cd;
+  if(S.shootCD>0)return;S.shootCD=cd;SFX.shoot();
   const lv=P.wLv;
   bullets.push({x:P.x,y:P.y-18,vx:0,vy:-11,w:4,h:12,dmg:1});
   if(lv>=2){bullets.push({x:P.x-10,y:P.y-12,vx:0,vy:-11,w:3,h:10,dmg:1});bullets.push({x:P.x+10,y:P.y-12,vx:0,vy:-11,w:3,h:10,dmg:1})}
@@ -232,7 +260,7 @@ function update(){
     if(e.y>H+30){enemies.splice(i,1);continue}
 
     for(let j=bullets.length-1;j>=0;j--){
-      if(rect(e,bullets[j])){const dmg=bullets[j].dmg||1;bullets.splice(j,1);e.hp-=dmg;explode(e.x,e.y,'#fc6',5);if(e.hp<=0){killEnemy(i);break}}
+      if(rect(e,bullets[j])){const dmg=bullets[j].dmg||1;bullets.splice(j,1);e.hp-=dmg;explode(e.x,e.y,'#fc6',5);if(e.hp<=0){killEnemy(i);break}else SFX.hit()}
     }
     if(P.invuln===0&&P.shield===0&&S.running&&rect(e,P)){explode(e.x,e.y,'#f84',18);enemies.splice(i,1);hitPlayer()}
     else if(P.shield>0&&rect(e,P)){explode(e.x,e.y,'#9cf',12);enemies.splice(i,1);S.score+=Math.floor(e.t.score*(P.mult>0?2:1));updateHUD()}
@@ -271,7 +299,7 @@ function update(){
     }
     if(P.invuln===0&&P.shield===0&&rect(b,P))hitPlayer();
     if(b.hp<=0){
-      explode(b.x,b.y,'#f80',60);explode(b.x,b.y,'#ff6',40);S.screenShake=30;
+      explode(b.x,b.y,'#f80',60);explode(b.x,b.y,'#ff6',40);S.screenShake=30;SFX.bossDefeat();
       S.score+=500*(P.mult>0?2:1);S.bossesDefeated++;
       for(let k=0;k<3;k++)dropItem(b.x+(k-1)*30,b.y);
       P.gauge=Math.min(100,P.gauge+50);
@@ -299,7 +327,7 @@ function update(){
 
 function killEnemy(i){
   const e=enemies[i];
-  explode(e.x,e.y,'#f84',18);
+  explode(e.x,e.y,'#f84',18);SFX.explode();
   S.score+=Math.floor(e.t.score*(P.mult>0?2:1));
   P.gauge=Math.min(100,P.gauge+(e.type==='tank'?8:e.type==='spinner'?5:3));
   if(Math.random()<e.t.drop)dropItem(e.x,e.y);
@@ -307,7 +335,7 @@ function killEnemy(i){
   const newLv=Math.floor(S.score/200)+1;
   if(newLv!==S.level){
     S.level=newLv;S.spawnInt=Math.max(20,60-S.level*3);
-    flash('LEVEL '+S.level+' UP!','#ff6');
+    flash('LEVEL '+S.level+' UP!','#ff6');SFX.levelup();
     if(S.lives<5)S.lives++;
     if(S.level%3===0&&P.wLv<5){P.wLv++;flash('무기 LV'+P.wLv,'#fc6')}
   }
@@ -315,7 +343,7 @@ function killEnemy(i){
 }
 
 function hitPlayer(){
-  S.lives--;P.invuln=90;explode(P.x,P.y,'#6df',22);S.screenShake=10;updateHUD();
+  S.lives--;P.invuln=90;explode(P.x,P.y,'#6df',22);S.screenShake=10;SFX.damage();updateHUD();
   if(S.lives<=0)gameOver();
 }
 
@@ -426,7 +454,7 @@ function renderRank(highlightIdx=-1){
 }
 
 function gameOver(){
-  S.running=false;title.textContent='게임 오버';intro.classList.add('hidden');
+  S.running=false;SFX.gameover();title.textContent='게임 오버';intro.classList.add('hidden');
   if(qualifies(S.score)){
     pendingScore={score:S.score,level:S.level};
     nameBox.classList.remove('hidden');rankBox.classList.add('hidden');
@@ -445,6 +473,7 @@ function gameOver(){
 nameInput.addEventListener('keydown',e=>{if(e.key==='Enter')startBtn.click()});
 
 startBtn.addEventListener('click',()=>{
+  audioInit();audioResume();
   if(S.paused){S.paused=false;overlay.classList.add('hidden');return}
   if(pendingScore){
     const name=(nameInput.value||'???').trim().toUpperCase().slice(0,8);
