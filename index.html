@@ -134,9 +134,25 @@ function syncMuteIcon(){if(muteIcon)muteIcon.textContent=muted?'🔇':'🔊';if(
 function toggleMute(){muted=!muted;syncMuteIcon();flash(muted?'🔇 MUTE':'🔊 SOUND','#fff')}
 syncMuteIcon();
 if(muteIcon)muteIcon.addEventListener('click',e=>{e.stopPropagation();audioInit();audioResume();toggleMute();if(!muted)setTimeout(()=>SFX.pickup(),50)});
-function audioInit(){if(actx)return;try{actx=new (window.AudioContext||window.webkitAudioContext)();masterGain=actx.createGain();masterGain.gain.value=0.55;masterGain.connect(actx.destination)}catch(e){actx=null}}
-function audioResume(){if(actx&&actx.state==='suspended')actx.resume().catch(()=>{})}
-window.addEventListener('pointerdown',()=>{audioInit();audioResume()},{capture:true});
+function audioInit(){
+  if(actx&&actx.state!=='closed')return;
+  try{
+    actx=new (window.AudioContext||window.webkitAudioContext)();
+    masterGain=actx.createGain();masterGain.gain.value=0.55;
+    masterGain.connect(actx.destination);
+    if(muteIcon)muteIcon.title='audio: '+actx.state;
+  }catch(e){actx=null;if(muteIcon)muteIcon.title='audio init failed: '+e.message}
+}
+function audioResume(){
+  if(!actx)return;
+  if(actx.state!=='running'){
+    actx.resume().then(()=>{if(muteIcon)muteIcon.title='audio: running'}).catch(e=>{if(muteIcon)muteIcon.title='resume err: '+e.message});
+  }
+}
+function unlockAudio(){audioInit();audioResume()}
+window.addEventListener('pointerdown',unlockAudio,{capture:true});
+window.addEventListener('click',unlockAudio,{capture:true});
+window.addEventListener('touchstart',unlockAudio,{capture:true,passive:true});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)audioResume()});
 function tone(freq,dur,type='square',vol=1,slide=0){if(!actx||muted)return;const o=actx.createOscillator(),g=actx.createGain(),n=actx.currentTime;o.type=type;o.frequency.setValueAtTime(freq,n);if(slide)try{o.frequency.exponentialRampToValueAtTime(Math.max(20,freq+slide),n+dur)}catch(e){}g.gain.setValueAtTime(0.0001,n);g.gain.linearRampToValueAtTime(vol,n+0.005);g.gain.exponentialRampToValueAtTime(0.0001,n+dur);o.connect(g);g.connect(masterGain);o.start(n);o.stop(n+dur+0.01)}
 function noise(dur,vol=1,freq=1000){if(!actx||muted)return;const len=Math.max(1,Math.floor(actx.sampleRate*dur)),buf=actx.createBuffer(1,len,actx.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);const src=actx.createBufferSource();src.buffer=buf;const f=actx.createBiquadFilter();f.type='lowpass';f.frequency.value=freq;const g=actx.createGain();g.gain.value=vol;src.connect(f);f.connect(g);g.connect(masterGain);src.start()}
