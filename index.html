@@ -321,7 +321,7 @@ function spawnEnemy(){
   else if(r<.30+lv*.015)type='zigzag';
   else if(r<.50+lv*.015)type='shooter';
   const t=ETYPES[type];
-  const hp=t.hp+Math.floor(lv/6)+Math.min(stage-1,4);
+  const hp=t.hp+Math.floor(lv/5)+Math.min(stage-1,7);
   // golden enemy: 1.2% chance, 5x score, guaranteed item drop
   const isGold=Math.random()<.012;
   enemies.push({x:Math.random()*(W-t.w-20)+10+t.w/2,y:-30,w:t.w,h:t.h,vx:(Math.random()-.5)*(1+Math.min(lv*.08,2)),vy:(t.vy+Math.min(lv*.05,2)+Math.random()*.5)*(1+Math.min((stage-1)*.08,.5)),hp:isGold?hp+2:hp,maxhp:isGold?hp+2:hp,type,t,stage,gold:isGold,shootTimer:Math.max(50,80-stage*5)+Math.random()*60,phase:Math.random()*Math.PI*2});
@@ -333,7 +333,7 @@ function spawnBoss(){
   const shape=(stage-1)%6;
   const sizeMul=1+stage*.05;
   const w=120*sizeMul,h=(shape===2?100:shape===3?100:90)*sizeMul;
-  const hp=120+stage*70+bn*20;
+  const hp=200+stage*110+bn*35;
   S.boss={x:W/2,y:-80,w,h,hp,maxhp:hp,vx:2+stage*.25,phase:0,patternTimer:0,pattern:0,bn,stage,shape,weakX:0,weakY:30,name:BOSS_NAMES[(stage-1)%BOSS_NAMES.length]};
   bossBar.style.display='block';
   SFX.bossSpawn();
@@ -436,7 +436,7 @@ function update(){
   // spawn (no regular enemies during boss)
   if(!S.boss){
     S.spawnTimer++;
-    if(S.spawnTimer>=S.spawnInt){S.spawnTimer=0;spawnEnemy()}
+    if(S.spawnTimer>=S.spawnInt){S.spawnTimer=0;const st=getStage();const wave=st>=3?Math.min(3,1+Math.floor((st-2)/2)):1;for(let w=0;w<wave;w++)spawnEnemy()}
     // boss every 5 levels
     if(S.level>=S.nextBossLevel)spawnBoss();
   }
@@ -460,8 +460,8 @@ function update(){
     if(e.t.zig)e.x+=Math.sin(e.phase*2)*3;else e.x+=e.vx;
     e.y+=e.vy;
     if(e.x<e.w/2||e.x>W-e.w/2)e.vx*=-1;
-    if(e.t.shoots){e.shootTimer--;if(e.shootTimer<=0&&e.y>0&&e.y<H*.6){ebullets.push({x:e.x,y:e.y+12,vx:0,vy:5,w:5,h:10});e.shootTimer=80+Math.random()*60}}
-    if(e.t.spin){e.shootTimer--;if(e.shootTimer<=0&&e.y>20&&e.y<H*.5){for(let k=0;k<6;k++){const a=e.phase+k*Math.PI/3;ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*3,vy:Math.sin(a)*3+1,w:4,h:8})}e.shootTimer=120+Math.random()*60}}
+    if(e.t.shoots){e.shootTimer--;if(e.shootTimer<=0&&e.y>0&&e.y<H*.6){ebullets.push({x:e.x,y:e.y+12,vx:0,vy:5+e.stage*.4,w:5,h:10});e.shootTimer=Math.max(40,80-e.stage*5)+Math.random()*60}}
+    if(e.t.spin){e.shootTimer--;if(e.shootTimer<=0&&e.y>20&&e.y<H*.5){const sp=3+e.stage*.25;for(let k=0;k<6;k++){const a=e.phase+k*Math.PI/3;ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp+1,w:4,h:8})}e.shootTimer=Math.max(70,120-e.stage*5)+Math.random()*60}}
     if(e.y>H+30){enemies.splice(i,1);continue}
 
     for(let j=bullets.length-1;j>=0;j--){
@@ -569,7 +569,7 @@ function killEnemy(i){
   META.stats.kills++;
   const newLv=scoreToLevel(S.score);
   if(newLv!==S.level){
-    S.level=newLv;S.spawnInt=Math.max(28,60-S.level*2);
+    S.level=newLv;S.spawnInt=Math.max(18,55-S.level*2);
     flash('LEVEL '+S.level+' UP!','#ff6');SFX.levelup();
     if(S.lives<(S.maxLives||5))S.lives++;
     if(S.level%3===0&&P.wLv<10){P.wLv++;flash('무기 LV'+P.wLv,'#fc6')}
