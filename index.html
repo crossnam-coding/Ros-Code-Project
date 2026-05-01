@@ -50,6 +50,7 @@ tr.me td{color:#ff6;font-weight:bold}
 <div id="stocks" style="font-size:12px;color:#cdf">💣<b id="sBomb">0</b> [2] · 🛡️<b id="sShield">0</b> [3] · ❤️<b id="sHeal">0</b> [4]</div>
 <div id="buffs"></div>
 <div id="combo" style="text-align:center;font-weight:bold;height:18px;font-size:14px"></div>
+<div id="muteIcon" style="position:absolute;right:8px;bottom:8px;font-size:18px;cursor:pointer;pointer-events:auto;background:#012;padding:4px 8px;border-radius:4px;border:1px solid #345" title="음소거 토글">🔊</div>
 <div id="achv" style="position:absolute;right:8px;top:160px;width:200px;text-align:right;pointer-events:none"></div>
 </div>
 <div id="flash"></div>
@@ -121,7 +122,7 @@ window.addEventListener('keydown',e=>{
   audioInit();audioResume();
   if([' ','arrowleft','arrowright','arrowup','arrowdown'].includes(k))e.preventDefault();
   if(k==='p'&&S.running)togglePause();
-  if(k==='m'){muted=!muted;flash(muted?'🔇 MUTE':'🔊 SOUND','#fff')}
+  if(k==='m'&&e.target.tagName!=='INPUT')toggleMute();
   if(S.running&&!S.paused){
     if(k==='1'||k==='x')tryUseSpecial();
     else if(k==='2')useBomb();
@@ -131,7 +132,12 @@ window.addEventListener('keydown',e=>{
 });
 
 // ===== AUDIO =====
-let actx=null,masterGain=null,muted=false;
+let actx=null,masterGain=null,muted=localStorage.getItem('ssMute')==='1';
+const muteIcon=document.getElementById('muteIcon');
+function syncMuteIcon(){if(muteIcon)muteIcon.textContent=muted?'🔇':'🔊';if(muteIcon)muteIcon.style.opacity=muted?'.4':'1'}
+function toggleMute(){muted=!muted;localStorage.setItem('ssMute',muted?'1':'0');syncMuteIcon();flash(muted?'🔇 MUTE':'🔊 SOUND','#fff')}
+syncMuteIcon();
+if(muteIcon)muteIcon.addEventListener('click',e=>{e.stopPropagation();audioInit();audioResume();toggleMute();if(!muted)setTimeout(()=>SFX.pickup(),50)});
 function audioInit(){if(actx)return;try{actx=new (window.AudioContext||window.webkitAudioContext)();masterGain=actx.createGain();masterGain.gain.value=0.55;masterGain.connect(actx.destination)}catch(e){actx=null}}
 function audioResume(){if(actx&&actx.state==='suspended')actx.resume().catch(()=>{})}
 function tone(freq,dur,type='square',vol=1,slide=0){if(!actx||muted)return;const o=actx.createOscillator(),g=actx.createGain(),n=actx.currentTime;o.type=type;o.frequency.setValueAtTime(freq,n);if(slide)try{o.frequency.exponentialRampToValueAtTime(Math.max(20,freq+slide),n+dur)}catch(e){}g.gain.setValueAtTime(0.0001,n);g.gain.linearRampToValueAtTime(vol,n+0.005);g.gain.exponentialRampToValueAtTime(0.0001,n+dur);o.connect(g);g.connect(masterGain);o.start(n);o.stop(n+dur+0.01)}
@@ -139,7 +145,7 @@ function noise(dur,vol=1,freq=1000){if(!actx||muted)return;const len=Math.max(1,
 const _last={};
 function thr(name,ms,fn){const t=Date.now();if((_last[name]||0)+ms<t){_last[name]=t;fn()}}
 const SFX={
-  shoot:()=>thr('s',30,()=>tone(900,0.05,'square',0.18,-500)),
+  shoot:()=>thr('s',45,()=>{tone(280,0.05,'triangle',0.14,80);tone(560,0.03,'sine',0.06,40)}),
   hit:()=>thr('h',25,()=>tone(180,0.05,'square',0.22,-40)),
   explode:()=>thr('e',40,()=>{noise(0.18,0.4,900);tone(120,0.15,'sawtooth',0.2,-50)}),
   damage:()=>{tone(150,0.18,'sawtooth',0.4,-80);noise(0.25,0.35,500)},
