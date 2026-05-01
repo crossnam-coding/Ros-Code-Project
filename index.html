@@ -208,8 +208,8 @@ function applyUpgrades(){
   const u=META.upg;
   P.wLv=1+(u.wLv||0);
   S.lives=3+(u.lives||0);
-  P.bombs=u.bombs||0;
-  P.shields=u.shields||0;
+  P.bombs=Math.min(CAP.B,u.bombs||0);
+  P.shields=Math.min(CAP.S,u.shields||0);
 }
 
 // daily challenge (date-based)
@@ -217,9 +217,9 @@ const DAILY=[
   {id:'doubleScore',n:'점수 ×2 모드',mod:s=>{s.scoreMul=(s.scoreMul||1)*2}},
   {id:'rapidStart',n:'시작부터 연사',mod:s=>{P.fireBoost=999999}},
   {id:'lessLives',n:'생명 ×2 점수',mod:s=>{S.lives=Math.max(1,S.lives-1);s.scoreMul=(s.scoreMul||1)*2}},
-  {id:'shieldStart',n:'시작 실드 +2',mod:s=>{P.shields+=2}},
+  {id:'shieldStart',n:'시작 실드 +2',mod:s=>{P.shields=Math.min(CAP.S,P.shields+2)}},
   {id:'wLvStart',n:'시작 무기 +2',mod:s=>{P.wLv=Math.min(5,P.wLv+2)}},
-  {id:'bombParty',n:'폭탄 파티: 시작 +3',mod:s=>{P.bombs+=3}},
+  {id:'bombParty',n:'폭탄 파티: 시작 +3',mod:s=>{P.bombs=Math.min(CAP.B,P.bombs+3)}},
   {id:'highRoller',n:'코인 ×3 보상',mod:s=>{s.coinMul=3}}
 ];
 function todayKey(){const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()}
@@ -269,9 +269,9 @@ const REWARDS=[
   {id:'maxLife',n:'❤️ 최대 생명 +1',d:'생명 +1 (현재도 +1)',cond:()=>true,apply:()=>{S.lives++;S.maxLives=(S.maxLives||5)+1}},
   {id:'gauge',n:'⚡ 특수기 충전 ×1.5',d:'게이지 충전 영구 ↑',cond:()=>true,apply:()=>{P.gaugeMul=(P.gaugeMul||1)*1.5}},
   {id:'mult',n:'💎 점수 ×1.3',d:'영구 점수 보너스',cond:()=>true,apply:()=>{S.scoreMul*=1.3}},
-  {id:'bombs',n:'💣 폭탄 +3',d:'스톡 보충',cond:()=>true,apply:()=>{P.bombs+=3}},
-  {id:'shields',n:'🛡️ 실드 +2',d:'스톡 보충',cond:()=>true,apply:()=>{P.shields+=2}},
-  {id:'heals',n:'💖 회복 +2',d:'스톡 보충',cond:()=>true,apply:()=>{P.heals+=2}},
+  {id:'bombs',n:'💣 폭탄 +3',d:'스톡 보충',cond:()=>P.bombs<CAP.B,apply:()=>{P.bombs=Math.min(CAP.B,P.bombs+3)}},
+  {id:'shields',n:'🛡️ 실드 +2',d:'스톡 보충',cond:()=>P.shields<CAP.S,apply:()=>{P.shields=Math.min(CAP.S,P.shields+2)}},
+  {id:'heals',n:'💖 회복 +2',d:'스톡 보충',cond:()=>P.heals<CAP.H,apply:()=>{P.heals=Math.min(CAP.H,P.heals+2)}},
   {id:'rear',n:'🔙 후방 발사',d:'뒤로도 사격',cond:()=>!P.rear,apply:()=>{P.rear=true}},
   {id:'pierce',n:'🔱 관통탄',d:'적을 관통하는 총알',cond:()=>!P.pierce,apply:()=>{P.pierce=true}},
   {id:'fullHeal',n:'💖 완전 회복',d:'생명 가득',cond:()=>true,apply:()=>{S.lives=S.maxLives||5}},
@@ -632,7 +632,7 @@ function killEnemy(i){
 }
 
 function hitPlayer(){
-  S.lives--;P.invuln=90+(P.invulnL||0)*15;explode(P.x,P.y,'#6df',22);S.screenShake=10;SFX.damage();
+  S.lives--;P.invuln=8+(P.invulnL||0)*20;explode(P.x,P.y,'#6df',22);S.screenShake=10;SFX.damage();
   if(S.combo>=5)breakCombo();else{S.combo=0;S.comboTimer=0}
   updateHUD();
   if(S.lives<=0)gameOver();
