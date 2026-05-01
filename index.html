@@ -140,18 +140,9 @@ function audioInit(){
   // Unlock HTML5 Audio with a silent sample inside the user gesture
   if(audioInit._unlocked)return;audioInit._unlocked=true;
   try{const a=new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');a.volume=0;const p=a.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}
-  // pre-warm common SFX WAVs so first in-game trigger doesn't hitch
-  setTimeout(()=>{
-    try{
-      _genTone(280,0.05,'triangle',0.14,80);_genTone(560,0.03,'sine',0.06,40);
-      _genTone(180,0.05,'square',0.22,-40);_genNoise(0.18,0.4,900);
-      _genTone(120,0.15,'sawtooth',0.2,-50);_genTone(700,0.06,'sine',0.3);
-      _genTone(1050,0.08,'sine',0.25);
-    }catch(e){}
-  },50);
 }
 function audioResume(){}
-const _wavCache={},_audioPool={},_POOL=2;
+const _wavCache={},_audioPool={},_POOL=4;
 function _wavURI(samples,sr){
   const len=samples.length,buf=new ArrayBuffer(44+len*2),dv=new DataView(buf);
   dv.setUint32(0,0x52494646);dv.setUint32(4,36+len*2,true);dv.setUint32(8,0x57415645);
@@ -731,7 +722,6 @@ function drawShip(x,y,w,h,c){
   ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x-1,y-h*.08,1,0,Math.PI*2);ctx.fill();
 }
 const STAGE_GLOW=['','#fff','#ff6','#f6f','#6ff','#fa6','#6fa'];
-const NEON_COLORS=['#0ff','#f0f','#ff0','#0f8','#fff'];
 function drawEnemy(e){
   if(e.gold){ctx.shadowColor='#ff0';ctx.shadowBlur=22}
   else if(e.stage&&e.stage>1){ctx.shadowColor=STAGE_GLOW[(e.stage-1)%STAGE_GLOW.length]||'#fff';ctx.shadowBlur=8}
@@ -829,8 +819,9 @@ function render(){
     const blink=P.invuln>0&&Math.floor(P.invuln/6)%2===0;
     if(!blink){
       if(P.shrink>0){
-        const nc=NEON_COLORS[Math.floor(Date.now()/70)%5];
-        ctx.save();ctx.shadowColor=nc;ctx.shadowBlur=14;
+        const NEON=['#0ff','#f0f','#ff0','#0f8','#fff'];
+        const nc=NEON[Math.floor(Date.now()/70)%NEON.length];
+        ctx.save();ctx.shadowColor=nc;ctx.shadowBlur=22+Math.sin(Date.now()*.02)*8;
         drawShip(P.x,P.y,P.w,P.h,nc);
         ctx.restore();
       }else{
