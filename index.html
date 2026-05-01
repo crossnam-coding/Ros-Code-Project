@@ -43,12 +43,14 @@ tr.me td{color:#ff6;font-weight:bold}
 <div id="wrap">
 <canvas id="game" width="600" height="720"></canvas>
 <div id="hud">
-<div class="row"><div>점수 <b id="score">0</b></div><div>레벨 <b id="level">1</b></div><div>생명 <b id="lives">3</b></div></div>
+<div class="row"><div>점수 <b id="score">0</b></div><div>레벨 <b id="level">1</b></div><div>🪙<b id="coins">0</b></div><div>생명 <b id="lives">3</b></div></div>
 <div>특수기 <span id="gaugeTxt">0</span>% <span style="color:#9ab">[1]</span></div>
 <div class="bar" id="gaugeBar"><div style="width:0%"></div></div>
 <div id="bossBar" class="bar"><div style="width:100%"></div></div>
 <div id="stocks" style="font-size:12px;color:#cdf">💣<b id="sBomb">0</b> [2] · 🛡️<b id="sShield">0</b> [3] · ❤️<b id="sHeal">0</b> [4]</div>
 <div id="buffs"></div>
+<div id="combo" style="text-align:center;font-weight:bold;height:18px;font-size:14px"></div>
+<div id="achv" style="position:absolute;right:8px;top:160px;width:200px;text-align:right;pointer-events:none"></div>
 </div>
 <div id="flash"></div>
 <div id="overlay">
@@ -73,7 +75,23 @@ tr.me td{color:#ff6;font-weight:bold}
 <p>🏆 랭킹 진입! 이름을 입력하세요</p>
 <input id="nameInput" maxlength="8" placeholder="NAME"/>
 </div>
+<div id="continueBox" class="hidden">
+<p style="font-size:18px">💫 부활하시겠습니까?</p>
+<p>30 🪙로 1 LIFE를 얻고 계속할 수 있습니다 (1회만)</p>
+<p>보유: <b id="continueCoins">0</b> 🪙</p>
+</div>
+<div id="shopBox" class="hidden" style="text-align:left;max-width:480px">
+<p style="font-size:20px;text-align:center">🛒 상점 — <b id="shopCoins">0</b> 🪙</p>
+<p style="text-align:center;font-size:12px;color:#9ab">영구 업그레이드 — 다음 게임부터 적용</p>
+<div id="shopList"></div>
+</div>
+<p id="dailyChallenge" style="color:#fc6;font-size:13px"></p>
+<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
 <button id="startBtn">게임 시작</button>
+<button id="shopBtn" style="background:#fc6">🛒 상점</button>
+<button id="continueBtn" class="hidden" style="background:#f9f">부활 (30🪙)</button>
+<button id="skipBtn" class="hidden" style="background:#789">포기</button>
+</div>
 </div>
 </div>
 <script>
@@ -81,7 +99,9 @@ tr.me td{color:#ff6;font-weight:bold}
 const cv=document.getElementById('game'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
 const $=id=>document.getElementById(id);
 const scoreEl=$('score'),lvlEl=$('level'),livesEl=$('lives'),gTxt=$('gaugeTxt'),gBar=$('gaugeBar').firstElementChild;
-const sBomb=$('sBomb'),sShield=$('sShield'),sHeal=$('sHeal');
+const sBomb=$('sBomb'),sShield=$('sShield'),sHeal=$('sHeal'),coinsEl=$('coins'),comboEl=$('combo'),achvEl=$('achv');
+const shopBtn=$('shopBtn'),shopBox=$('shopBox'),shopCoinsEl=$('shopCoins'),shopList=$('shopList');
+const continueBox=$('continueBox'),continueBtn=$('continueBtn'),skipBtn=$('skipBtn'),continueCoinsEl=$('continueCoins'),dailyEl=$('dailyChallenge');
 const bossBar=$('bossBar'),bossBarFill=bossBar.firstElementChild,buffsEl=$('buffs'),flashEl=$('flash');
 const overlay=$('overlay'),title=$('title'),intro=$('intro'),rankBox=$('rankBox'),nameBox=$('nameBox'),nameInput=$('nameInput'),startBtn=$('startBtn');
 const RANK_KEY='spaceShooterScores';
@@ -125,15 +145,104 @@ const SFX={
   gameover:()=>{[440,349,261,196].forEach((f,i)=>setTimeout(()=>tone(f,0.4,'triangle',0.4),i*220))}
 };
 window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
-const S={running:false,paused:false,score:0,level:1,lives:3,spawnTimer:0,spawnInt:60,shootCD:0,stars:[],boss:null,bossesDefeated:0,laserTimer:0,screenShake:0};
+const S={running:false,paused:false,score:0,level:1,lives:3,spawnTimer:0,spawnInt:60,shootCD:0,stars:[],boss:null,bossesDefeated:0,laserTimer:0,screenShake:0,combo:0,comboTimer:0,scoreMul:1,coinMul:1,goldenSpawned:0,sessionCoins:0};
 const P={x:W/2,y:H-70,w:36,h:36,speed:5,invuln:0,wLv:1,fireBoost:0,shield:0,mult:0,gauge:0,bombs:0,shields:0,heals:0};
 const bullets=[],ebullets=[],enemies=[],items=[],parts=[];
 for(let i=0;i<90;i++)S.stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.3,v:Math.random()*1.5+.5});
-function reset(){S.score=0;S.level=1;S.lives=3;S.spawnTimer=0;S.spawnInt=60;S.shootCD=0;S.boss=null;S.bossesDefeated=0;S.laserTimer=0;S.screenShake=0;P.x=W/2;P.y=H-70;P.invuln=0;P.wLv=1;P.fireBoost=0;P.shield=0;P.mult=0;P.gauge=0;P.bombs=0;P.shields=0;P.heals=0;bullets.length=ebullets.length=enemies.length=items.length=parts.length=0;bossBar.style.display='none';updateHUD()}
-function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent='S'+getStage()+'·'+S.level;livesEl.textContent=S.lives;gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';sBomb.textContent=P.bombs;sShield.textContent=P.shields;sHeal.textContent=P.heals;let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';buffsEl.textContent=b}
+function reset(){S.score=0;S.level=1;S.lives=3;S.spawnTimer=0;S.spawnInt=60;S.shootCD=0;S.boss=null;S.bossesDefeated=0;S.laserTimer=0;S.screenShake=0;S.combo=0;S.comboTimer=0;S.scoreMul=1;S.coinMul=1;S.goldenSpawned=0;S.sessionCoins=0;P.x=W/2;P.y=H-70;P.invuln=0;P.wLv=1;P.fireBoost=0;P.shield=0;P.mult=0;P.gauge=0;P.bombs=0;P.shields=0;P.heals=0;bullets.length=ebullets.length=enemies.length=items.length=parts.length=popups.length=0;bossBar.style.display='none';META.continued=false;applyUpgrades();const d=getDaily();d.mod(S);dailyEl.textContent='오늘의 챌린지: '+d.n;updateHUD()}
+function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent='S'+getStage()+'·'+S.level;livesEl.textContent=S.lives;gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';sBomb.textContent=P.bombs;sShield.textContent=P.shields;sHeal.textContent=P.heals;coinsEl.textContent=META.coins+S.sessionCoins;let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';buffsEl.textContent=b;if(S.combo>=3){const m=comboMult();comboEl.style.color=m>=5?'#f6f':m>=3?'#ff6':'#cf6';comboEl.style.fontSize=(14+Math.min(20,S.combo))+'px';comboEl.textContent='COMBO '+S.combo+' ×'+m}else{comboEl.textContent=''}}
 function flash(t,c='#ff6'){flashEl.textContent=t;flashEl.style.color=c;flashEl.style.opacity=1;setTimeout(()=>flashEl.style.opacity=0,800)}
 function togglePause(){S.paused=!S.paused;if(S.paused){title.textContent='일시정지';intro.classList.add('hidden');rankBox.classList.add('hidden');nameBox.classList.add('hidden');startBtn.textContent='계속';overlay.classList.remove('hidden')}else{overlay.classList.add('hidden')}}
 function getStage(){return Math.floor((S.level-1)/10)+1}
+
+// ===== META PROGRESSION =====
+const COIN_KEY='spaceShooterCoins',UPG_KEY='spaceShooterUpg',ACHV_KEY='spaceShooterAchv',STAT_KEY='spaceShooterStats';
+function loadCoins(){return parseInt(localStorage.getItem(COIN_KEY)||'0',10)||0}
+function saveCoins(n){localStorage.setItem(COIN_KEY,String(n));coinsEl.textContent=n}
+function loadUpg(){try{return JSON.parse(localStorage.getItem(UPG_KEY))||{}}catch{return{}}}
+function saveUpg(o){localStorage.setItem(UPG_KEY,JSON.stringify(o))}
+function loadStats(){try{return JSON.parse(localStorage.getItem(STAT_KEY))||{kills:0,bosses:0,runs:0,bestCombo:0}}catch{return{kills:0,bosses:0,runs:0,bestCombo:0}}}
+function saveStats(s){localStorage.setItem(STAT_KEY,JSON.stringify(s))}
+function loadAchv(){try{return JSON.parse(localStorage.getItem(ACHV_KEY))||{}}catch{return{}}}
+function saveAchv(a){localStorage.setItem(ACHV_KEY,JSON.stringify(a))}
+let META={coins:loadCoins(),upg:loadUpg(),stats:loadStats(),achv:loadAchv(),continued:false};
+coinsEl.textContent=META.coins;
+
+const UPGRADES=[
+  {id:'wLv',name:'시작 무기 LV',max:4,cost:l=>50+l*70,desc:'시작 무기 +1'},
+  {id:'lives',name:'시작 생명',max:4,cost:l=>100+l*100,desc:'시작 생명 +1'},
+  {id:'bombs',name:'시작 폭탄',max:5,cost:l=>40+l*30,desc:'시작 💣 +1'},
+  {id:'shields',name:'시작 실드',max:3,cost:l=>60+l*40,desc:'시작 🛡️ +1'},
+  {id:'gauge',name:'특수기 충전 ↑',max:3,cost:l=>120+l*120,desc:'게이지 충전 +25%'},
+  {id:'multi',name:'점수 보너스',max:5,cost:l=>150+l*150,desc:'모든 점수 +10%'}
+];
+function upgLv(id){return META.upg[id]||0}
+function applyUpgrades(){
+  const u=META.upg;
+  P.wLv=1+(u.wLv||0);
+  S.lives=3+(u.lives||0);
+  P.bombs=u.bombs||0;
+  P.shields=u.shields||0;
+}
+
+// daily challenge (date-based)
+const DAILY=[
+  {id:'doubleScore',n:'점수 ×2 모드',mod:s=>{s.scoreMul=(s.scoreMul||1)*2}},
+  {id:'rapidStart',n:'시작부터 연사',mod:s=>{P.fireBoost=999999}},
+  {id:'lessLives',n:'생명 ×2 점수',mod:s=>{S.lives=Math.max(1,S.lives-1);s.scoreMul=(s.scoreMul||1)*2}},
+  {id:'shieldStart',n:'시작 실드 +2',mod:s=>{P.shields+=2}},
+  {id:'wLvStart',n:'시작 무기 +2',mod:s=>{P.wLv=Math.min(5,P.wLv+2)}},
+  {id:'bombParty',n:'폭탄 파티: 시작 +3',mod:s=>{P.bombs+=3}},
+  {id:'highRoller',n:'코인 ×3 보상',mod:s=>{s.coinMul=3}}
+];
+function todayKey(){const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()}
+function dailyHash(){const k=todayKey();let h=0;for(let i=0;i<k.length;i++)h=(h*31+k.charCodeAt(i))|0;return Math.abs(h)%DAILY.length}
+function getDaily(){return DAILY[dailyHash()]}
+
+// achievements
+const ACHV=[
+  {id:'firstKill',n:'첫 격추',c:5,check:s=>s.kills>=1},
+  {id:'k100',n:'100 킬',c:30,check:s=>s.kills>=100},
+  {id:'k500',n:'500 킬',c:100,check:s=>s.kills>=500},
+  {id:'k2000',n:'2000 킬',c:300,check:s=>s.kills>=2000},
+  {id:'b1',n:'첫 보스 격파',c:50,check:s=>s.bosses>=1},
+  {id:'b5',n:'보스 5회 격파',c:150,check:s=>s.bosses>=5},
+  {id:'b20',n:'보스 20회 격파',c:500,check:s=>s.bosses>=20},
+  {id:'r10',n:'10회 플레이',c:30,check:s=>s.runs>=10},
+  {id:'r50',n:'50회 플레이',c:150,check:s=>s.runs>=50},
+  {id:'c20',n:'콤보 20',c:30,check:s=>s.bestCombo>=20},
+  {id:'c50',n:'콤보 50',c:100,check:s=>s.bestCombo>=50},
+  {id:'c100',n:'콤보 100',c:300,check:s=>s.bestCombo>=100}
+];
+function checkAchievements(){
+  for(const a of ACHV){
+    if(!META.achv[a.id]&&a.check(META.stats)){
+      META.achv[a.id]=1;saveAchv(META.achv);
+      META.coins+=a.c;saveCoins(META.coins);
+      showAchv(a);
+    }
+  }
+}
+function showAchv(a){
+  const div=document.createElement('div');
+  div.style.cssText='background:#241;border:1px solid #6f4;padding:6px 10px;margin-bottom:4px;border-radius:4px;font-size:12px;color:#cf6;text-shadow:0 0 4px #6f0;animation:slideIn .3s';
+  div.innerHTML='🏆 <b>'+a.n+'</b><br><span style="color:#fc6">+'+a.c+' 🪙</span>';
+  achvEl.appendChild(div);
+  SFX.levelup();
+  setTimeout(()=>{div.style.opacity='0';div.style.transition='opacity .5s';setTimeout(()=>div.remove(),500)},2500);
+}
+
+// score popups
+const popups=[];
+function popup(x,y,text,color='#ff6'){popups.push({x,y,text,color,life:50,vy:-1.5})}
+
+// combo
+function addCombo(){
+  S.combo++;S.comboTimer=120;
+  if(S.combo>META.stats.bestCombo){META.stats.bestCombo=S.combo;saveStats(META.stats)}
+}
+function comboMult(){const c=S.combo;return c<3?1:c<8?1.5:c<16?2:c<31?3:c<60?5:8}
+function breakCombo(){if(S.combo>=5){flash('콤보 BREAK '+S.combo,'#f88')}S.combo=0;S.comboTimer=0}
 const STAGE_TINTS=['','#fcc','#cfc','#ccf','#fcf','#cff','#fdc'];
 function tint(base,stage){if(stage<=1)return base;const t=STAGE_TINTS[(stage-1)%STAGE_TINTS.length];if(!t)return base;return t}
 
@@ -154,7 +263,10 @@ function spawnEnemy(){
   else if(r<.50+lv*.015)type='shooter';
   const t=ETYPES[type];
   const hp=t.hp+Math.floor(lv/4)+(stage-1);
-  enemies.push({x:Math.random()*(W-t.w-20)+10+t.w/2,y:-30,w:t.w,h:t.h,vx:(Math.random()-.5)*(1+lv*.12),vy:(t.vy+lv*.08+Math.random()*.5)*(1+(stage-1)*.12),hp,maxhp:hp,type,t,stage,shootTimer:Math.max(40,80-stage*8)+Math.random()*60,phase:Math.random()*Math.PI*2});
+  // golden enemy: 1.2% chance, 5x score, guaranteed item drop
+  const isGold=Math.random()<.012;
+  enemies.push({x:Math.random()*(W-t.w-20)+10+t.w/2,y:-30,w:t.w,h:t.h,vx:(Math.random()-.5)*(1+lv*.12),vy:(t.vy+lv*.08+Math.random()*.5)*(1+(stage-1)*.12),hp:isGold?hp+2:hp,maxhp:isGold?hp+2:hp,type,t,stage,gold:isGold,shootTimer:Math.max(40,80-stage*8)+Math.random()*60,phase:Math.random()*Math.PI*2});
+  if(isGold)S.goldenSpawned++;
 }
 const BOSS_NAMES=['크림슨 리퍼','오우거 캐리어','보텍스 코어','다이아몬드 황제','드레드노트','하이브 마더','오메가 리바이어던'];
 function spawnBoss(){
@@ -227,6 +339,8 @@ function update(){
   if(P.mult>0){P.mult--;if(P.mult===0)updateHUD()}
   if(S.laserTimer>0)S.laserTimer--;
   if(S.screenShake>0)S.screenShake--;
+  if(S.comboTimer>0){S.comboTimer--;if(S.comboTimer===0)breakCombo();updateHUD()}
+  for(let i=popups.length-1;i>=0;i--){const p=popups[i];p.y+=p.vy;p.vy*=.97;p.life--;if(p.life<=0)popups.splice(i,1)}
 
   // spawn (no regular enemies during boss)
   if(!S.boss){
@@ -300,11 +414,19 @@ function update(){
     if(P.invuln===0&&P.shield===0&&rect(b,P))hitPlayer();
     if(b.hp<=0){
       explode(b.x,b.y,'#f80',60);explode(b.x,b.y,'#ff6',40);S.screenShake=30;SFX.bossDefeat();
-      S.score+=500*(P.mult>0?2:1);S.bossesDefeated++;
+      const upgMul=1+(upgLv('multi')||0)*.1;
+      const bossScore=Math.floor(500*S.scoreMul*upgMul*(P.mult>0?2:1));
+      S.score+=bossScore;S.bossesDefeated++;META.stats.bosses++;saveStats(META.stats);
+      popup(b.x,b.y,'+'+bossScore,'#ff6');
+      const bossCoins=(50+b.stage*20)*S.coinMul;
+      S.sessionCoins+=bossCoins;
+      popup(b.x,b.y+18,'+'+bossCoins+' 🪙','#fd0');
       for(let k=0;k<3;k++)dropItem(b.x+(k-1)*30,b.y);
       P.gauge=Math.min(100,P.gauge+50);
-      flash('보스 격파!','#ff6');
-      S.boss=null;bossBar.style.display='none';updateHUD();
+      flash('보스 격파! +'+bossCoins+' 🪙','#ff6');
+      S.boss=null;bossBar.style.display='none';
+      checkAchievements();
+      updateHUD();
     }
   }
 
@@ -327,11 +449,24 @@ function update(){
 
 function killEnemy(i){
   const e=enemies[i];
-  explode(e.x,e.y,'#f84',18);SFX.explode();
-  S.score+=Math.floor(e.t.score*(P.mult>0?2:1));
-  P.gauge=Math.min(100,P.gauge+(e.type==='tank'?8:e.type==='spinner'?5:3));
-  if(Math.random()<e.t.drop)dropItem(e.x,e.y);
+  explode(e.x,e.y,e.gold?'#fd0':'#f84',e.gold?32:18);SFX.explode();
+  addCombo();
+  const baseScore=e.t.score*(e.gold?5:1);
+  const upgMul=1+(upgLv('multi')||0)*.1;
+  const earned=Math.floor(baseScore*comboMult()*(P.mult>0?2:1)*S.scoreMul*upgMul);
+  S.score+=earned;
+  popup(e.x,e.y,'+'+earned,e.gold?'#fd0':S.combo>=8?'#ff6':'#fff');
+  // gauge gain (with upgrade)
+  const gMul=1+(upgLv('gauge')||0)*.25;
+  P.gauge=Math.min(100,P.gauge+(e.type==='tank'?8:e.type==='spinner'?5:3)*gMul);
+  // coins (1 per 8 score)
+  const coinGain=Math.max(1,Math.floor(earned/8))*S.coinMul;
+  S.sessionCoins+=coinGain;
+  if(e.gold){popup(e.x,e.y-12,'+'+coinGain+' 🪙','#fd0');SFX.heal();flash('★ GOLDEN ★','#fd0')}
+  // item drop
+  if(e.gold||Math.random()<e.t.drop)dropItem(e.x,e.y);
   enemies.splice(i,1);
+  META.stats.kills++;
   const newLv=Math.floor(S.score/200)+1;
   if(newLv!==S.level){
     S.level=newLv;S.spawnInt=Math.max(20,60-S.level*3);
@@ -339,11 +474,14 @@ function killEnemy(i){
     if(S.lives<5)S.lives++;
     if(S.level%3===0&&P.wLv<5){P.wLv++;flash('무기 LV'+P.wLv,'#fc6')}
   }
+  if(META.stats.kills%50===0)checkAchievements();
   updateHUD();
 }
 
 function hitPlayer(){
-  S.lives--;P.invuln=90;explode(P.x,P.y,'#6df',22);S.screenShake=10;SFX.damage();updateHUD();
+  S.lives--;P.invuln=90;explode(P.x,P.y,'#6df',22);S.screenShake=10;SFX.damage();
+  if(S.combo>=5)breakCombo();else{S.combo=0;S.comboTimer=0}
+  updateHUD();
   if(S.lives<=0)gameOver();
 }
 
@@ -351,8 +489,9 @@ function hitPlayer(){
 function drawShip(x,y,w,h,c){ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(x,y-h/2);ctx.lineTo(x+w/2,y+h/2);ctx.lineTo(x,y+h/4);ctx.lineTo(x-w/2,y+h/2);ctx.closePath();ctx.fill();ctx.fillStyle='#fff';ctx.fillRect(x-2,y-4,4,8)}
 const STAGE_GLOW=['','#fff','#ff6','#f6f','#6ff','#fa6','#6fa'];
 function drawEnemy(e){
-  if(e.stage&&e.stage>1){ctx.shadowColor=STAGE_GLOW[(e.stage-1)%STAGE_GLOW.length]||'#fff';ctx.shadowBlur=6}
-  ctx.fillStyle=e.t.color;
+  if(e.gold){ctx.shadowColor='#ff0';ctx.shadowBlur=20}
+  else if(e.stage&&e.stage>1){ctx.shadowColor=STAGE_GLOW[(e.stage-1)%STAGE_GLOW.length]||'#fff';ctx.shadowBlur=6}
+  ctx.fillStyle=e.gold?'#fd0':e.t.color;
   if(e.type==='shooter'){ctx.beginPath();ctx.moveTo(e.x,e.y+e.h/2);ctx.lineTo(e.x+e.w/2,e.y-e.h/2);ctx.lineTo(e.x-e.w/2,e.y-e.h/2);ctx.closePath();ctx.fill();ctx.fillStyle='#ff0';ctx.fillRect(e.x-3,e.y-3,6,6)}
   else if(e.type==='zigzag'){ctx.beginPath();ctx.moveTo(e.x,e.y-e.h/2);ctx.lineTo(e.x+e.w/2,e.y);ctx.lineTo(e.x,e.y+e.h/2);ctx.lineTo(e.x-e.w/2,e.y);ctx.closePath();ctx.fill();ctx.fillStyle='#036';ctx.fillRect(e.x-3,e.y-3,6,6)}
   else if(e.type==='tank'){ctx.fillRect(e.x-e.w/2,e.y-e.h/2,e.w,e.h);ctx.fillStyle='#666';ctx.fillRect(e.x-e.w/2+4,e.y-e.h/2+4,e.w-8,e.h-8);ctx.fillStyle='#f33';ctx.fillRect(e.x-6,e.y-4,12,8)}
@@ -436,6 +575,10 @@ function render(){
   }
   // particles
   for(const p of parts){ctx.globalAlpha=Math.max(0,p.life/50);ctx.fillStyle=p.color;ctx.fillRect(p.x-2,p.y-2,3,3)}ctx.globalAlpha=1;
+  // score popups
+  ctx.font='bold 14px monospace';ctx.textAlign='center';
+  for(const p of popups){ctx.globalAlpha=Math.max(0,p.life/50);ctx.fillStyle='#000';ctx.fillText(p.text,p.x+1,p.y+1);ctx.fillStyle=p.color;ctx.fillText(p.text,p.x,p.y)}
+  ctx.globalAlpha=1;ctx.textAlign='start';
   if(S.screenShake>0)ctx.restore();
 }
 function loop(){update();render();requestAnimationFrame(loop)}
@@ -454,7 +597,24 @@ function renderRank(highlightIdx=-1){
 }
 
 function gameOver(){
-  S.running=false;SFX.gameover();title.textContent='게임 오버';intro.classList.add('hidden');
+  S.running=false;SFX.gameover();
+  // commit session coins to META
+  META.coins+=S.sessionCoins;saveCoins(META.coins);META.stats.runs++;saveStats(META.stats);checkAchievements();
+  title.textContent='게임 오버';intro.classList.add('hidden');shopBox.classList.add('hidden');shopBtn.classList.add('hidden');dailyEl.textContent='';
+  // continue offer
+  if(!META.continued&&META.coins>=30){
+    continueBox.classList.remove('hidden');continueCoinsEl.textContent=META.coins;
+    continueBtn.classList.remove('hidden');skipBtn.classList.remove('hidden');
+    nameBox.classList.add('hidden');rankBox.classList.add('hidden');
+    startBtn.classList.add('hidden');
+    overlay.classList.remove('hidden');
+    return;
+  }
+  finalizeGameOver();
+}
+function finalizeGameOver(){
+  continueBox.classList.add('hidden');continueBtn.classList.add('hidden');skipBtn.classList.add('hidden');
+  startBtn.classList.remove('hidden');shopBtn.classList.remove('hidden');
   if(qualifies(S.score)){
     pendingScore={score:S.score,level:S.level};
     nameBox.classList.remove('hidden');rankBox.classList.add('hidden');
@@ -462,7 +622,7 @@ function gameOver(){
     startBtn.textContent='기록 저장';
   }else{
     nameBox.classList.add('hidden');rankBox.classList.remove('hidden');
-    rankBox.innerHTML=`<p>최종 점수 <b style="color:#ff6">${S.score}</b> · 레벨 ${S.level}</p>`;
+    rankBox.innerHTML=`<p>최종 점수 <b style="color:#ff6">${S.score}</b> · 레벨 ${S.level} · <b style="color:#fc6">+${S.sessionCoins} 🪙</b> 획득 (총 ${META.coins})</p>`;
     renderRank();
     const div=document.createElement('div');rankBox.appendChild(div);
     startBtn.textContent='다시 시작';
@@ -487,8 +647,54 @@ startBtn.addEventListener('click',()=>{
     startBtn.textContent='다시 시작';
     return;
   }
-  reset();S.running=true;intro.classList.add('hidden');rankBox.classList.add('hidden');nameBox.classList.add('hidden');overlay.classList.add('hidden');
+  reset();S.running=true;intro.classList.add('hidden');rankBox.classList.add('hidden');nameBox.classList.add('hidden');shopBox.classList.add('hidden');overlay.classList.add('hidden');
 });
+
+// shop UI
+function renderShop(){
+  shopCoinsEl.textContent=META.coins;
+  let html='';
+  for(const u of UPGRADES){
+    const lv=upgLv(u.id),cost=u.cost(lv),maxed=lv>=u.max;
+    html+=`<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #345;border-radius:4px;padding:6px 10px;margin:4px 0;background:#012">
+      <div><b>${u.name}</b> <span style="color:#9ab;font-size:11px">[${lv}/${u.max}]</span><br><span style="font-size:11px;color:#9ab">${u.desc}</span></div>
+      <button data-id="${u.id}" ${maxed?'disabled style="opacity:.4"':''} style="margin:0;padding:6px 12px;font-size:13px;background:${maxed?'#333':META.coins>=cost?'#fc6':'#544'};color:#001">${maxed?'MAX':cost+' 🪙'}</button>
+    </div>`;
+  }
+  shopList.innerHTML=html;
+  shopList.querySelectorAll('button[data-id]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.dataset.id,u=UPGRADES.find(x=>x.id===id),lv=upgLv(id);
+      if(lv>=u.max)return;
+      const cost=u.cost(lv);
+      if(META.coins<cost)return;
+      META.coins-=cost;META.upg[id]=lv+1;saveCoins(META.coins);saveUpg(META.upg);
+      SFX.pickup();renderShop();
+    });
+  });
+}
+shopBtn.addEventListener('click',()=>{
+  audioInit();audioResume();
+  if(shopBox.classList.contains('hidden')){
+    shopBox.classList.remove('hidden');intro.classList.add('hidden');rankBox.classList.add('hidden');
+    title.textContent='상점';shopBtn.textContent='← 돌아가기';renderShop();
+  }else{
+    shopBox.classList.add('hidden');intro.classList.remove('hidden');rankBox.classList.remove('hidden');
+    title.textContent='스페이스 슈터';shopBtn.textContent='🛒 상점';
+  }
+});
+continueBtn.addEventListener('click',()=>{
+  if(META.coins<30||META.continued)return;
+  META.coins-=30;saveCoins(META.coins);META.continued=true;
+  S.lives=2;P.invuln=120;P.gauge=Math.min(100,P.gauge+50);
+  enemies.length=ebullets.length=0;flash('💫 부활!','#f9f');SFX.heal();
+  continueBox.classList.add('hidden');continueBtn.classList.add('hidden');skipBtn.classList.add('hidden');startBtn.classList.remove('hidden');
+  overlay.classList.add('hidden');S.running=true;updateHUD();
+});
+skipBtn.addEventListener('click',()=>{finalizeGameOver()});
+
+// show daily challenge on intro
+const dToday=getDaily();dailyEl.textContent='오늘의 챌린지: '+dToday.n;
 
 // initial overlay shows intro + rankings preview
 renderRank();
