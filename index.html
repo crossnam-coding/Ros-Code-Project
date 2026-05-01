@@ -112,7 +112,8 @@ const drones=[];
 const bossBar=$('bossBar'),bossBarFill=bossBar.firstElementChild,buffsEl=$('buffs'),flashEl=$('flash');
 const overlay=$('overlay'),title=$('title'),intro=$('intro'),rankBox=$('rankBox'),nameBox=$('nameBox'),nameInput=$('nameInput'),startBtn=$('startBtn');
 const RANK_KEY='spaceShooterScores';
-const STAGE_LEN=15;
+const STAGE_LEN=20;
+function scoreToLevel(s){let lv=1,need=0;while(lv<300){const cost=400+(lv-1)*45;if(s<need+cost)return lv;need+=cost;lv++}return lv}
 const keys={};
 let pendingScore=null;
 window.addEventListener('keydown',e=>{
@@ -144,7 +145,7 @@ const SFX={
   damage:()=>{tone(150,0.18,'sawtooth',0.4,-80);noise(0.25,0.35,500)},
   pickup:()=>{tone(700,0.06,'sine',0.3);setTimeout(()=>tone(1050,0.08,'sine',0.25),60)},
   special:()=>{tone(150,0.5,'sawtooth',0.45,1800);noise(0.5,0.35,2200)},
-  bomb:()=>{noise(0.6,0.7,400);tone(80,0.6,'sawtooth',0.5,-30)},
+  bomb:()=>{noise(.9,.85,350);tone(45,.9,'sawtooth',.6,-15);setTimeout(()=>{noise(.5,.6,180);tone(90,.4,'square',.4,-50)},90);setTimeout(()=>noise(.3,.4,500),300)},
   shield:()=>{tone(440,0.12,'sine',0.3);setTimeout(()=>tone(660,0.18,'sine',0.28),60)},
   heal:()=>{[523,659,784].forEach((f,i)=>setTimeout(()=>tone(f,0.12,'sine',0.3),i*90))},
   levelup:()=>{[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.1,'square',0.3),i*70))},
@@ -157,8 +158,8 @@ const S={running:false,paused:false,score:0,level:1,lives:3,spawnTimer:0,spawnIn
 const P={x:W/2,y:H-70,w:36,h:36,speed:5,invuln:0,wLv:1,fireBoost:0,shield:0,mult:0,gauge:0,bombs:0,shields:0,heals:0};
 const bullets=[],ebullets=[],enemies=[],items=[],parts=[];
 for(let i=0;i<90;i++)S.stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.3,v:Math.random()*1.5+.5});
-function reset(){S.score=0;S.level=1;S.lives=3;S.maxLives=5;S.spawnTimer=0;S.spawnInt=60;S.shootCD=0;S.boss=null;S.bossesDefeated=0;S.nextBossLevel=STAGE_LEN;S.laserTimer=0;S.screenShake=0;S.combo=0;S.comboTimer=0;S.scoreMul=1;S.coinMul=1;S.goldenSpawned=0;S.sessionCoins=0;P.x=W/2;P.y=H-70;P.invuln=0;P.wLv=1;P.fireBoost=0;P.shield=0;P.mult=0;P.gauge=0;P.bombs=0;P.shields=0;P.heals=0;P.speed=5;P.rear=false;P.pierce=false;P.permRapid=false;P.gaugeMul=1;bullets.length=ebullets.length=enemies.length=items.length=parts.length=popups.length=drones.length=0;bossBar.style.display='none';META.continued=false;applyUpgrades();const d=getDaily();d.mod(S);dailyEl.textContent='오늘의 챌린지: '+d.n;updateHUD()}
-function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent='S'+getStage()+'·'+S.level;livesEl.textContent=S.lives;gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';sBomb.textContent=P.bombs;sShield.textContent=P.shields;sHeal.textContent=P.heals;coinsEl.textContent=META.coins+S.sessionCoins;let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';buffsEl.textContent=b;if(S.combo>=3){const m=comboMult();comboEl.style.color=m>=5?'#f6f':m>=3?'#ff6':'#cf6';comboEl.style.fontSize=(14+Math.min(20,S.combo))+'px';comboEl.textContent='COMBO '+S.combo+' ×'+m}else{comboEl.textContent=''}}
+function reset(){S.score=0;S.level=1;S.lives=3;S.maxLives=5;S.spawnTimer=0;S.spawnInt=60;S.shootCD=0;S.boss=null;S.bossesDefeated=0;S.nextBossLevel=STAGE_LEN;S.laserTimer=0;S.screenShake=0;S.combo=0;S.comboTimer=0;S.scoreMul=1;S.coinMul=1;S.goldenSpawned=0;S.sessionCoins=0;P.x=W/2;P.y=H-70;P.invuln=0;P.wLv=1;P.fireBoost=0;P.shield=0;P.mult=0;P.gauge=0;P.bombs=0;P.shields=0;P.heals=0;P.speed=5;P.rear=false;P.pierce=false;P.permRapid=false;P.gaugeMul=1;bullets.length=ebullets.length=enemies.length=items.length=parts.length=popups.length=drones.length=shocks.length=0;S.flashOverlay=0;bossBar.style.display='none';META.continued=false;applyUpgrades();const d=getDaily();d.mod(S);dailyEl.textContent='오늘의 챌린지: '+d.n;updateHUD()}
+function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent='S'+getStage()+'·'+S.level;const ml=S.maxLives||5;livesEl.innerHTML='<span style="color:#f66;text-shadow:0 0 4px #f00">'+'♥'.repeat(Math.max(0,S.lives))+'</span><span style="color:#444">'+'♥'.repeat(Math.max(0,ml-S.lives))+'</span>';gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';sBomb.textContent=P.bombs;sShield.textContent=P.shields;sHeal.textContent=P.heals;coinsEl.textContent=META.coins+S.sessionCoins;let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';buffsEl.textContent=b;if(S.combo>=3){const m=comboMult();comboEl.style.color=m>=5?'#f6f':m>=3?'#ff6':'#cf6';comboEl.style.fontSize=(14+Math.min(20,S.combo))+'px';comboEl.textContent='COMBO '+S.combo+' ×'+m}else{comboEl.textContent=''}}
 function flash(t,c='#ff6'){flashEl.textContent=t;flashEl.style.color=c;flashEl.style.opacity=1;setTimeout(()=>flashEl.style.opacity=0,800)}
 function togglePause(){S.paused=!S.paused;if(S.paused){title.textContent='일시정지';intro.classList.add('hidden');rankBox.classList.add('hidden');nameBox.classList.add('hidden');startBtn.textContent='계속';overlay.classList.remove('hidden')}else{overlay.classList.add('hidden')}}
 function getStage(){return Math.floor((S.level-1)/STAGE_LEN)+1}
@@ -281,6 +282,9 @@ function showRewardPicker(){
   overlay.classList.remove('hidden');
 }
 
+// shockwaves + screen flash
+const shocks=[];
+function addShock(x,y,color,maxR,dur){shocks.push({x,y,r:0,maxR,life:dur,maxLife:dur,color})}
 // score popups
 const popups=[];
 function popup(x,y,text,color='#ff6'){popups.push({x,y,text,color,life:50,vy:-1.5})}
@@ -352,8 +356,12 @@ function useBomb(){if(P.bombs<=0)return;P.bombs--;SFX.bomb();bombClear();flash('
 function useShield(){if(P.shields<=0||P.shield>0)return;P.shields--;SFX.shield();P.shield=600;flash('🛡️ 실드 ON','#9cf');updateHUD()}
 function useHeal(){if(P.heals<=0)return;P.heals--;SFX.heal();if(S.lives<5){S.lives++;flash('+1 LIFE','#f88')}else{S.score+=200;flash('+200','#f88')}updateHUD()}
 function bombClear(){
-  for(const e of enemies){explode(e.x,e.y,'#f80',24);S.score+=Math.floor((e.t.score/2)*(P.mult>0?2:1))}
-  enemies.length=0;ebullets.length=0;S.screenShake=20;updateHUD();
+  addShock(P.x,P.y,'#f63',900,40);
+  addShock(P.x,P.y,'#fc6',650,32);
+  addShock(P.x,P.y,'#fff',400,22);
+  S.flashOverlay=22;
+  for(const e of enemies){explode(e.x,e.y,'#f80',26);explode(e.x,e.y,'#ff6',12);S.score+=Math.floor((e.t.score/2)*(P.mult>0?2:1))}
+  enemies.length=0;ebullets.length=0;S.screenShake=35;updateHUD();
 }
 function tryUseSpecial(){
   if(P.gauge<100)return;
@@ -413,7 +421,9 @@ function update(){
   if(P.mult>0){P.mult--;if(P.mult===0)updateHUD()}
   if(S.laserTimer>0)S.laserTimer--;
   if(S.screenShake>0)S.screenShake--;
+  if(S.flashOverlay>0)S.flashOverlay--;
   if(S.comboTimer>0){S.comboTimer--;if(S.comboTimer===0)breakCombo();updateHUD()}
+  for(let i=shocks.length-1;i>=0;i--){const sh=shocks[i];sh.r+=sh.maxR/sh.maxLife;sh.life--;if(sh.life<=0)shocks.splice(i,1)}
   updateDrones();
   for(let i=popups.length-1;i>=0;i--){const p=popups[i];p.y+=p.vy;p.vy*=.97;p.life--;if(p.life<=0)popups.splice(i,1)}
 
@@ -551,7 +561,7 @@ function killEnemy(i){
   if(e.gold||Math.random()<e.t.drop)dropItem(e.x,e.y);
   enemies.splice(i,1);
   META.stats.kills++;
-  const newLv=Math.floor(S.score/300)+1;
+  const newLv=scoreToLevel(S.score);
   if(newLv!==S.level){
     S.level=newLv;S.spawnInt=Math.max(28,60-S.level*2);
     flash('LEVEL '+S.level+' UP!','#ff6');SFX.levelup();
@@ -660,6 +670,10 @@ function render(){
   }
   // particles
   for(const p of parts){ctx.globalAlpha=Math.max(0,p.life/50);ctx.fillStyle=p.color;ctx.fillRect(p.x-2,p.y-2,3,3)}ctx.globalAlpha=1;
+  // shockwaves
+  for(const sh of shocks){const a=sh.life/sh.maxLife;ctx.globalAlpha=a*.9;ctx.strokeStyle=sh.color;ctx.lineWidth=Math.max(2,10*a);ctx.beginPath();ctx.arc(sh.x,sh.y,sh.r,0,Math.PI*2);ctx.stroke()}ctx.globalAlpha=1;ctx.lineWidth=1;
+  // white screen flash
+  if(S.flashOverlay>0){ctx.fillStyle='rgba(255,255,255,'+(S.flashOverlay/22*.55)+')';ctx.fillRect(0,0,W,H)}
   // score popups
   ctx.font='bold 14px monospace';ctx.textAlign='center';
   for(const p of popups){ctx.globalAlpha=Math.max(0,p.life/50);ctx.fillStyle='#000';ctx.fillText(p.text,p.x+1,p.y+1);ctx.fillStyle=p.color;ctx.fillText(p.text,p.x,p.y)}
