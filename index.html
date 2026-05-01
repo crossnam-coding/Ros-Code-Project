@@ -162,10 +162,18 @@ const bullets=[],ebullets=[],enemies=[],items=[],parts=[];
 for(let i=0;i<60;i++)S.stars.push({x:Math.random()*W,y:Math.random()*H,s:.5+Math.random()*.4,v:.25+Math.random()*.25,c:'#446'});
 for(let i=0;i<40;i++)S.stars.push({x:Math.random()*W,y:Math.random()*H,s:1+Math.random()*.6,v:.7+Math.random()*.5,c:'#99a'});
 for(let i=0;i<22;i++)S.stars.push({x:Math.random()*W,y:Math.random()*H,s:1.6+Math.random()*1,v:1.4+Math.random()*.9,c:'#fff'});
-const nebulaCanvas=document.createElement('canvas');nebulaCanvas.width=W;nebulaCanvas.height=H;
-{const nc=nebulaCanvas.getContext('2d');nc.fillStyle='#000';nc.fillRect(0,0,W,H);
-const neb=[{x:180,y:200,r:280,c:'rgba(70,30,150,.40)'},{x:470,y:480,r:330,c:'rgba(20,80,180,.32)'},{x:120,y:620,r:230,c:'rgba(180,40,120,.24)'},{x:520,y:120,r:200,c:'rgba(0,180,200,.18)'}];
-for(const n of neb){const g=nc.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r);g.addColorStop(0,n.c);g.addColorStop(1,'transparent');nc.fillStyle=g;nc.fillRect(0,0,W,H)}}
+const nebulaCanvas=document.createElement('canvas');
+function buildNebula(){
+  const sf=pxScale||1;
+  nebulaCanvas.width=Math.max(1,Math.round(W*sf));
+  nebulaCanvas.height=Math.max(1,Math.round(H*sf));
+  const nc=nebulaCanvas.getContext('2d');
+  nc.setTransform(sf,0,0,sf,0,0);
+  nc.fillStyle='#000';nc.fillRect(0,0,W,H);
+  const neb=[{x:180,y:200,r:280,c:'rgba(70,30,150,.40)'},{x:470,y:480,r:330,c:'rgba(20,80,180,.32)'},{x:120,y:620,r:230,c:'rgba(180,40,120,.24)'},{x:520,y:120,r:200,c:'rgba(0,180,200,.18)'}];
+  for(const n of neb){const g=nc.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r);g.addColorStop(0,n.c);g.addColorStop(1,'transparent');nc.fillStyle=g;nc.fillRect(0,0,W,H)}
+}
+buildNebula();
 function reset(){S.score=0;S.level=1;S.lives=3;S.maxLives=5;S.spawnTimer=0;S.spawnInt=60;S.shootCD=0;S.boss=null;S.bossesDefeated=0;S.nextBossLevel=STAGE_LEN;S.laserTimer=0;S.screenShake=0;S.combo=0;S.comboTimer=0;S.scoreMul=1;S.coinMul=1;S.goldenSpawned=0;S.sessionCoins=0;P.x=W/2;P.y=H-70;P.invuln=0;P.wLv=1;P.fireBoost=0;P.shield=0;P.mult=0;P.gauge=0;P.bombs=0;P.shields=0;P.heals=0;P.speed=5;P.w=36;P.h=36;P.rear=false;P.pierce=false;P.permRapid=false;P.gaugeMul=1;P.spdL=0;P.rateL=0;P.invulnL=0;P.gMulL=0;P.sMulL=0;P.hitL=0;P.droneL=0;P.lifeL=0;bullets.length=ebullets.length=enemies.length=items.length=parts.length=popups.length=drones.length=shocks.length=0;S.flashOverlay=0;bossBar.style.display='none';META.continued=false;applyUpgrades();const d=getDaily();d.mod(S);dailyEl.textContent='오늘의 챌린지: '+d.n;updateHUD()}
 function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent='S'+getStage()+'·'+S.level;const ml=S.maxLives||5;if(ml>6){livesEl.innerHTML='<span style="color:#f66;text-shadow:0 0 4px #f00">♥ ×'+S.lives+'</span><span style="color:#666;font-size:11px"> /'+ml+'</span>'}else{livesEl.innerHTML='<span style="color:#f66;text-shadow:0 0 4px #f00">'+'♥'.repeat(Math.max(0,S.lives))+'</span><span style="color:#444">'+'♥'.repeat(Math.max(0,ml-S.lives))+'</span>'}gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';sBomb.textContent=P.bombs;sShield.textContent=P.shields;sHeal.textContent=P.heals;coinsEl.textContent=META.coins+S.sessionCoins;let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';buffsEl.textContent=b;if(S.combo>=3){const m=comboMult();comboEl.style.color=m>=5?'#f6f':m>=3?'#ff6':'#cf6';comboEl.style.fontSize=(14+Math.min(20,S.combo))+'px';comboEl.textContent='COMBO '+S.combo+' ×'+m}else{comboEl.textContent=''}}
 function flash(t,c='#ff6'){flashEl.textContent=t;flashEl.style.color=c;flashEl.style.opacity=1;setTimeout(()=>flashEl.style.opacity=0,800)}
@@ -723,7 +731,7 @@ function drawItem(it){
 }
 function render(){
   ctx.setTransform(pxScale,0,0,pxScale,0,0);
-  ctx.drawImage(nebulaCanvas,0,0);
+  ctx.drawImage(nebulaCanvas,0,0,W,H);
   let sx=0,sy=0;if(S.screenShake>0){sx=(Math.random()-.5)*S.screenShake;sy=(Math.random()-.5)*S.screenShake;ctx.save();ctx.translate(sx,sy)}
   // stars (3 parallax layers)
   for(const s of S.stars){ctx.fillStyle=s.c;ctx.fillRect(s.x,s.y,s.s,s.s)}
@@ -887,7 +895,7 @@ rankBox.classList.remove('hidden');
 function fitGame(){
   const cv=document.getElementById('game');
   const baseW=600, baseH=720;
-  const cssScale=Math.min(window.innerWidth/baseW,window.innerHeight/baseH,1.6);
+  const cssScale=Math.min(window.innerWidth/baseW,window.innerHeight/baseH);
   const dpr=Math.max(1,window.devicePixelRatio||1);
   pxScale=cssScale*dpr;
   cv.width=Math.round(baseW*pxScale);
@@ -895,6 +903,9 @@ function fitGame(){
   cv.style.width=Math.round(baseW*cssScale)+'px';
   cv.style.height=Math.round(baseH*cssScale)+'px';
   ctx.setTransform(pxScale,0,0,pxScale,0,0);
+  ctx.imageSmoothingEnabled=true;
+  ctx.imageSmoothingQuality='high';
+  buildNebula();
 }
 window.addEventListener('resize',fitGame);
 fitGame();
