@@ -152,11 +152,11 @@ const SFX={
   gameover:()=>{[440,349,261,196].forEach((f,i)=>setTimeout(()=>tone(f,0.4,'triangle',0.4),i*220))}
 };
 window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
-const S={running:false,paused:false,score:0,level:1,lives:3,spawnTimer:0,spawnInt:60,shootCD:0,stars:[],boss:null,bossesDefeated:0,laserTimer:0,screenShake:0,combo:0,comboTimer:0,scoreMul:1,coinMul:1,goldenSpawned:0,sessionCoins:0};
+const S={running:false,paused:false,score:0,level:1,lives:3,spawnTimer:0,spawnInt:60,shootCD:0,stars:[],boss:null,bossesDefeated:0,nextBossLevel:STAGE_LEN,laserTimer:0,screenShake:0,combo:0,comboTimer:0,scoreMul:1,coinMul:1,goldenSpawned:0,sessionCoins:0};
 const P={x:W/2,y:H-70,w:36,h:36,speed:5,invuln:0,wLv:1,fireBoost:0,shield:0,mult:0,gauge:0,bombs:0,shields:0,heals:0};
 const bullets=[],ebullets=[],enemies=[],items=[],parts=[];
 for(let i=0;i<90;i++)S.stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.3,v:Math.random()*1.5+.5});
-function reset(){S.score=0;S.level=1;S.lives=3;S.maxLives=5;S.spawnTimer=0;S.spawnInt=60;S.shootCD=0;S.boss=null;S.bossesDefeated=0;S.laserTimer=0;S.screenShake=0;S.combo=0;S.comboTimer=0;S.scoreMul=1;S.coinMul=1;S.goldenSpawned=0;S.sessionCoins=0;P.x=W/2;P.y=H-70;P.invuln=0;P.wLv=1;P.fireBoost=0;P.shield=0;P.mult=0;P.gauge=0;P.bombs=0;P.shields=0;P.heals=0;P.speed=5;P.rear=false;P.pierce=false;P.permRapid=false;P.gaugeMul=1;bullets.length=ebullets.length=enemies.length=items.length=parts.length=popups.length=drones.length=0;bossBar.style.display='none';META.continued=false;applyUpgrades();const d=getDaily();d.mod(S);dailyEl.textContent='오늘의 챌린지: '+d.n;updateHUD()}
+function reset(){S.score=0;S.level=1;S.lives=3;S.maxLives=5;S.spawnTimer=0;S.spawnInt=60;S.shootCD=0;S.boss=null;S.bossesDefeated=0;S.nextBossLevel=STAGE_LEN;S.laserTimer=0;S.screenShake=0;S.combo=0;S.comboTimer=0;S.scoreMul=1;S.coinMul=1;S.goldenSpawned=0;S.sessionCoins=0;P.x=W/2;P.y=H-70;P.invuln=0;P.wLv=1;P.fireBoost=0;P.shield=0;P.mult=0;P.gauge=0;P.bombs=0;P.shields=0;P.heals=0;P.speed=5;P.rear=false;P.pierce=false;P.permRapid=false;P.gaugeMul=1;bullets.length=ebullets.length=enemies.length=items.length=parts.length=popups.length=drones.length=0;bossBar.style.display='none';META.continued=false;applyUpgrades();const d=getDaily();d.mod(S);dailyEl.textContent='오늘의 챌린지: '+d.n;updateHUD()}
 function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent='S'+getStage()+'·'+S.level;livesEl.textContent=S.lives;gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';sBomb.textContent=P.bombs;sShield.textContent=P.shields;sHeal.textContent=P.heals;coinsEl.textContent=META.coins+S.sessionCoins;let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';buffsEl.textContent=b;if(S.combo>=3){const m=comboMult();comboEl.style.color=m>=5?'#f6f':m>=3?'#ff6':'#cf6';comboEl.style.fontSize=(14+Math.min(20,S.combo))+'px';comboEl.textContent='COMBO '+S.combo+' ×'+m}else{comboEl.textContent=''}}
 function flash(t,c='#ff6'){flashEl.textContent=t;flashEl.style.color=c;flashEl.style.opacity=1;setTimeout(()=>flashEl.style.opacity=0,800)}
 function togglePause(){S.paused=!S.paused;if(S.paused){title.textContent='일시정지';intro.classList.add('hidden');rankBox.classList.add('hidden');nameBox.classList.add('hidden');startBtn.textContent='계속';overlay.classList.remove('hidden')}else{overlay.classList.add('hidden')}}
@@ -422,7 +422,7 @@ function update(){
     S.spawnTimer++;
     if(S.spawnTimer>=S.spawnInt){S.spawnTimer=0;spawnEnemy()}
     // boss every 5 levels
-    if(S.level>=(S.bossesDefeated+1)*STAGE_LEN)spawnBoss();
+    if(S.level>=S.nextBossLevel)spawnBoss();
   }
 
   // bullets
@@ -507,6 +507,7 @@ function update(){
       P.gauge=Math.min(100,P.gauge+50);
       flash('보스 격파! +'+bossCoins+' 🪙','#ff6');
       S.boss=null;bossBar.style.display='none';
+      S.nextBossLevel=Math.max(S.nextBossLevel+STAGE_LEN,S.level+STAGE_LEN);
       checkAchievements();
       updateHUD();
       setTimeout(showRewardPicker,900);
