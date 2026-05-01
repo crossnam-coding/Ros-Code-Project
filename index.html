@@ -90,6 +90,7 @@ tr.me td{color:#ff6;font-weight:bold}
 <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
 <button id="startBtn">게임 시작</button>
 <button id="shopBtn" style="background:#fc6">🛒 상점</button>
+<button id="testSoundBtn" style="background:#9cf">🔊 소리 테스트</button>
 <button id="continueBtn" class="hidden" style="background:#f9f">부활 (30🪙)</button>
 <button id="skipBtn" class="hidden" style="background:#789">포기</button>
 </div>
@@ -138,7 +139,7 @@ function audioInit(){
   if(actx&&actx.state!=='closed')return;
   try{
     actx=new (window.AudioContext||window.webkitAudioContext)();
-    masterGain=actx.createGain();masterGain.gain.value=0.55;
+    masterGain=actx.createGain();masterGain.gain.value=1.0;
     masterGain.connect(actx.destination);
     if(muteIcon)muteIcon.title='audio: '+actx.state;
   }catch(e){actx=null;if(muteIcon)muteIcon.title='audio init failed: '+e.message}
@@ -883,6 +884,21 @@ function renderShop(){
     });
   });
 }
+$('testSoundBtn').addEventListener('click',()=>{
+  audioInit();audioResume();
+  if(muted){muted=false;syncMuteIcon()}
+  if(!actx){flash('오디오 생성 실패','#f66');return}
+  flash('소리 테스트 ('+actx.state+')','#9cf');
+  const n=actx.currentTime;
+  const o=actx.createOscillator(),g=actx.createGain();
+  o.type='sine';o.frequency.setValueAtTime(440,n);
+  o.frequency.linearRampToValueAtTime(880,n+0.4);
+  g.gain.setValueAtTime(0.0001,n);
+  g.gain.linearRampToValueAtTime(0.6,n+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,n+0.5);
+  o.connect(g);g.connect(masterGain||actx.destination);
+  o.start(n);o.stop(n+0.55);
+});
 shopBtn.addEventListener('click',()=>{
   audioInit();audioResume();
   if(shopBox.classList.contains('hidden')){
