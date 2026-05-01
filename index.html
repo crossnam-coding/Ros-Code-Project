@@ -307,11 +307,11 @@ function tint(base,stage){if(stage<=1)return base;const t=STAGE_TINTS[(stage-1)%
 
 // ENEMY TYPES
 const ETYPES={
-  basic:{w:30,h:30,hp:1,score:10,color:'#8f6',vy:1.2,drop:.12},
-  shooter:{w:36,h:36,hp:2,score:30,color:'#f48',vy:1.0,drop:.18,shoots:true},
-  zigzag:{w:28,h:28,hp:1,score:25,color:'#6cf',vy:1.8,drop:.15,zig:true},
-  tank:{w:50,h:46,hp:6,score:80,color:'#aaa',vy:.6,drop:.4},
-  spinner:{w:40,h:40,hp:3,score:50,color:'#c6f',vy:.9,drop:.25,spin:true}
+  basic:{w:30,h:30,hp:1,score:10,color:'#8f6',vy:1.2,drop:.05},
+  shooter:{w:36,h:36,hp:2,score:30,color:'#f48',vy:1.0,drop:.08,shoots:true},
+  zigzag:{w:28,h:28,hp:1,score:25,color:'#6cf',vy:1.8,drop:.06,zig:true},
+  tank:{w:50,h:46,hp:6,score:80,color:'#aaa',vy:.6,drop:.2},
+  spinner:{w:40,h:40,hp:3,score:50,color:'#c6f',vy:.9,drop:.12,spin:true}
 };
 function spawnEnemy(){
   const r=Math.random(),lv=S.level,stage=getStage();
@@ -345,7 +345,7 @@ function dropItem(x,y){
   const total=weights.reduce((a,b)=>a+b,0);
   let r=Math.random()*total,i=0;
   for(;i<weights.length;i++){r-=weights[i];if(r<=0)break}
-  items.push({x,y,vy:1.5,type:types[i],phase:0});
+  items.push({x,y,vy:2.4,type:types[i],phase:0});
 }
 function applyItem(t){
   SFX.pickup();
