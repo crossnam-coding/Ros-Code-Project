@@ -1,465 +1,413 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>스페이스 슈터 - 2D Shooting Game</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
-    height: 100%;
-    background: #000;
-    color: #fff;
-    font-family: 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
-    overflow: hidden;
-  }
-  body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(ellipse at center, #0b1230 0%, #000 80%);
-  }
-  h1 {
-    font-size: 22px;
-    letter-spacing: 4px;
-    margin-bottom: 10px;
-    color: #6df;
-    text-shadow: 0 0 8px #6df;
-  }
-  #wrap {
-    position: relative;
-    border: 2px solid #6df;
-    border-radius: 6px;
-    box-shadow: 0 0 24px #6df8;
-  }
-  canvas {
-    display: block;
-    background: #000;
-  }
-  #hud {
-    position: absolute;
-    top: 8px; left: 12px; right: 12px;
-    display: flex;
-    justify-content: space-between;
-    font-size: 14px;
-    color: #cdf;
-    text-shadow: 0 0 4px #000;
-    pointer-events: none;
-  }
-  #overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.7);
-    text-align: center;
-    padding: 20px;
-  }
-  #overlay h2 {
-    font-size: 32px;
-    color: #6df;
-    text-shadow: 0 0 10px #6df;
-    margin-bottom: 16px;
-  }
-  #overlay p { margin: 6px 0; line-height: 1.6; }
-  #overlay button {
-    margin-top: 18px;
-    padding: 10px 28px;
-    font-size: 16px;
-    background: #6df;
-    color: #001;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    letter-spacing: 2px;
-    transition: transform .1s, box-shadow .2s;
-  }
-  #overlay button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 16px #6df;
-  }
-  .hidden { display: none !important; }
-  .key {
-    display: inline-block;
-    padding: 2px 8px;
-    background: #234;
-    border: 1px solid #6df;
-    border-radius: 3px;
-    margin: 0 2px;
-    font-family: monospace;
-    font-size: 13px;
-  }
-  small { color: #89a; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#000;color:#fff;font-family:'Segoe UI','Apple SD Gothic Neo',sans-serif;overflow:hidden}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#0b1230 0%,#000 80%)}
+h1{font-size:22px;letter-spacing:4px;margin-bottom:8px;color:#6df;text-shadow:0 0 8px #6df}
+#wrap{position:relative;border:2px solid #6df;border-radius:6px;box-shadow:0 0 24px #6df8}
+canvas{display:block;background:#000}
+#hud{position:absolute;top:6px;left:10px;right:10px;font-size:13px;color:#cdf;text-shadow:0 0 4px #000;pointer-events:none}
+#hud .row{display:flex;justify-content:space-between;margin-bottom:4px}
+.bar{height:8px;background:#234;border:1px solid #6df;border-radius:2px;overflow:hidden;margin:2px 0}
+.bar>div{height:100%;transition:width .1s}
+#gaugeBar>div{background:linear-gradient(90deg,#6df,#fff)}
+#bossBar{display:none}
+#bossBar>div{background:linear-gradient(90deg,#f33,#f80)}
+#buffs{font-size:11px;color:#ff6;margin-top:2px;height:14px}
+#flash{position:absolute;left:0;right:0;top:40%;text-align:center;font-size:30px;color:#ff6;text-shadow:0 0 12px #ff0;pointer-events:none;opacity:0;transition:opacity .3s;font-weight:bold;letter-spacing:3px}
+#overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.78);text-align:center;padding:20px;overflow-y:auto}
+#overlay h2{font-size:30px;color:#6df;text-shadow:0 0 10px #6df;margin-bottom:12px}
+#overlay p{margin:5px 0;line-height:1.5;font-size:14px}
+#overlay button{margin-top:16px;padding:10px 26px;font-size:15px;background:#6df;color:#001;border:none;border-radius:4px;cursor:pointer;font-weight:bold;letter-spacing:2px}
+#overlay button:hover{transform:scale(1.05);box-shadow:0 0 16px #6df}
+#overlay input{margin-top:10px;padding:8px 12px;font-size:16px;background:#001;color:#6df;border:2px solid #6df;border-radius:4px;text-align:center;width:200px;text-transform:uppercase}
+.hidden{display:none!important}
+.key{display:inline-block;padding:1px 7px;background:#234;border:1px solid #6df;border-radius:3px;margin:0 1px;font-family:monospace;font-size:12px}
+small{color:#89a}
+table{margin:8px auto;border-collapse:collapse;font-size:13px}
+th,td{padding:3px 10px;border-bottom:1px solid #345}
+th{color:#6df}
+tr.me td{color:#ff6;font-weight:bold}
+.itemHelp{font-size:11px;color:#9ab;margin:8px 0}
+.itemHelp span{display:inline-block;margin:1px 4px}
+.itemHelp b{display:inline-block;width:16px;height:16px;line-height:16px;border-radius:3px;color:#000;font-weight:bold;text-align:center;vertical-align:middle;margin-right:3px}
 </style>
 </head>
 <body>
-  <h1>S P A C E &nbsp; S H O O T E R</h1>
-  <div id="wrap">
-    <canvas id="game" width="600" height="700"></canvas>
-    <div id="hud">
-      <div>점수: <span id="score">0</span></div>
-      <div>레벨: <span id="level">1</span></div>
-      <div>생명: <span id="lives">3</span></div>
-    </div>
-    <div id="overlay">
-      <h2 id="title">스페이스 슈터</h2>
-      <p>누구나 즐길 수 있는 2D 슈팅 게임</p>
-      <p><span class="key">←</span> <span class="key">→</span> <span class="key">↑</span> <span class="key">↓</span> 또는 <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 이동</p>
-      <p><span class="key">Space</span> 발사 &nbsp;·&nbsp; <span class="key">P</span> 일시정지</p>
-      <p><small>적을 격추할수록 점수와 레벨이 올라갑니다.</small></p>
-      <button id="startBtn">게임 시작</button>
-    </div>
-  </div>
-
+<h1>S P A C E &nbsp; S H O O T E R</h1>
+<div id="wrap">
+<canvas id="game" width="600" height="720"></canvas>
+<div id="hud">
+<div class="row"><div>점수 <b id="score">0</b></div><div>레벨 <b id="level">1</b></div><div>생명 <b id="lives">3</b></div></div>
+<div>특수기 <span id="gaugeTxt">0</span>% <span style="color:#9ab">[X]</span></div>
+<div class="bar" id="gaugeBar"><div style="width:0%"></div></div>
+<div id="bossBar" class="bar"><div style="width:100%"></div></div>
+<div id="buffs"></div>
+</div>
+<div id="flash"></div>
+<div id="overlay">
+<h2 id="title">스페이스 슈터</h2>
+<div id="intro">
+<p>아이템을 모아 우주선을 강화하고, 게이지를 모아 특수기를 발사하세요!</p>
+<p><span class="key">←→↑↓</span> / <span class="key">WASD</span> 이동 · <span class="key">Space</span> 발사 · <span class="key">X</span> 특수기 · <span class="key">P</span> 일시정지</p>
+<div class="itemHelp">
+<span><b style="background:#fc6">W</b>무기↑</span>
+<span><b style="background:#f9f">R</b>연사</span>
+<span><b style="background:#9cf">S</b>실드</span>
+<span><b style="background:#f88">H</b>회복</span>
+<span><b style="background:#fd4">M</b>점수×2</span>
+<span><b style="background:#cf6">G</b>게이지</span>
+<span><b style="background:#f63">B</b>폭탄</span>
+</div>
+<p><small>5레벨마다 <b style="color:#f66">보스</b>가 등장합니다. 빨간 약점을 공격하면 3배 데미지!</small></p>
+</div>
+<div id="rankBox" class="hidden"></div>
+<div id="nameBox" class="hidden">
+<p>🏆 랭킹 진입! 이름을 입력하세요</p>
+<input id="nameInput" maxlength="8" placeholder="NAME"/>
+</div>
+<button id="startBtn">게임 시작</button>
+</div>
+</div>
 <script>
-(() => {
-  const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
+(()=>{
+const cv=document.getElementById('game'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
+const $=id=>document.getElementById(id);
+const scoreEl=$('score'),lvlEl=$('level'),livesEl=$('lives'),gTxt=$('gaugeTxt'),gBar=$('gaugeBar').firstElementChild;
+const bossBar=$('bossBar'),bossBarFill=bossBar.firstElementChild,buffsEl=$('buffs'),flashEl=$('flash');
+const overlay=$('overlay'),title=$('title'),intro=$('intro'),rankBox=$('rankBox'),nameBox=$('nameBox'),nameInput=$('nameInput'),startBtn=$('startBtn');
+const RANK_KEY='spaceShooterScores';
+const keys={};
+let pendingScore=null;
+window.addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();keys[k]=true;
+  if([' ','arrowleft','arrowright','arrowup','arrowdown'].includes(k))e.preventDefault();
+  if(k==='p'&&S.running)togglePause();
+  if(k==='x'&&S.running&&!S.paused)tryUseSpecial();
+});
+window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
+const S={running:false,paused:false,score:0,level:1,lives:3,spawnTimer:0,spawnInt:60,shootCD:0,stars:[],boss:null,bossesDefeated:0,laserTimer:0,screenShake:0};
+const P={x:W/2,y:H-70,w:36,h:36,speed:5,invuln:0,wLv:1,fireBoost:0,shield:0,mult:0,gauge:0};
+const bullets=[],ebullets=[],enemies=[],items=[],parts=[];
+for(let i=0;i<90;i++)S.stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.3,v:Math.random()*1.5+.5});
+function reset(){S.score=0;S.level=1;S.lives=3;S.spawnTimer=0;S.spawnInt=60;S.shootCD=0;S.boss=null;S.bossesDefeated=0;S.laserTimer=0;S.screenShake=0;P.x=W/2;P.y=H-70;P.invuln=0;P.wLv=1;P.fireBoost=0;P.shield=0;P.mult=0;P.gauge=0;bullets.length=ebullets.length=enemies.length=items.length=parts.length=0;bossBar.style.display='none';updateHUD()}
+function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent=S.level;livesEl.textContent=S.lives;gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';buffsEl.textContent=b}
+function flash(t,c='#ff6'){flashEl.textContent=t;flashEl.style.color=c;flashEl.style.opacity=1;setTimeout(()=>flashEl.style.opacity=0,800)}
+function togglePause(){S.paused=!S.paused;if(S.paused){title.textContent='일시정지';intro.classList.add('hidden');rankBox.classList.add('hidden');nameBox.classList.add('hidden');startBtn.textContent='계속';overlay.classList.remove('hidden')}else{overlay.classList.add('hidden')}}
 
-  const scoreEl = document.getElementById('score');
-  const levelEl = document.getElementById('level');
-  const livesEl = document.getElementById('lives');
-  const overlay = document.getElementById('overlay');
-  const overlayTitle = document.getElementById('title');
-  const startBtn = document.getElementById('startBtn');
+// ENEMY TYPES
+const ETYPES={
+  basic:{w:30,h:30,hp:1,score:10,color:'#8f6',vy:1.2,drop:.12},
+  shooter:{w:36,h:36,hp:2,score:30,color:'#f48',vy:1.0,drop:.18,shoots:true},
+  zigzag:{w:28,h:28,hp:1,score:25,color:'#6cf',vy:1.8,drop:.15,zig:true},
+  tank:{w:50,h:46,hp:6,score:80,color:'#aaa',vy:.6,drop:.4},
+  spinner:{w:40,h:40,hp:3,score:50,color:'#c6f',vy:.9,drop:.25,spin:true}
+};
+function spawnEnemy(){
+  const r=Math.random(),lv=S.level;
+  let type='basic';
+  if(r<.04+lv*.01)type='tank';
+  else if(r<.15+lv*.015)type='spinner';
+  else if(r<.30+lv*.02)type='zigzag';
+  else if(r<.50+lv*.02)type='shooter';
+  const t=ETYPES[type];
+  enemies.push({x:Math.random()*(W-t.w-20)+10+t.w/2,y:-30,w:t.w,h:t.h,vx:(Math.random()-.5)*(1+lv*.15),vy:t.vy+lv*.1+Math.random()*.5,hp:t.hp+Math.floor(lv/4),maxhp:t.hp+Math.floor(lv/4),type,t,shootTimer:60+Math.random()*60,phase:Math.random()*Math.PI*2});
+}
+function spawnBoss(){
+  const lv=S.level,bn=S.bossesDefeated+1;
+  S.boss={x:W/2,y:-80,w:120,h:90,hp:80+lv*15+bn*30,maxhp:80+lv*15+bn*30,vx:2+bn*.3,phase:0,patternTimer:0,pattern:0,bn,weakX:0,weakY:30};
+  bossBar.style.display='block';
+  flash('보스 출현!','#f66');
+}
+function dropItem(x,y){
+  const types=['W','R','S','H','M','G','B'];
+  const weights=[18,18,15,10,12,15,8];
+  const total=weights.reduce((a,b)=>a+b,0);
+  let r=Math.random()*total,i=0;
+  for(;i<weights.length;i++){r-=weights[i];if(r<=0)break}
+  items.push({x,y,vy:1.5,type:types[i],phase:0});
+}
+function applyItem(t){
+  if(t==='W'){if(P.wLv<5){P.wLv++;flash('무기 강화 LV'+P.wLv,'#fc6')}else{S.score+=100;flash('+100','#fc6')}}
+  else if(t==='R'){P.fireBoost=600;flash('연사 모드','#f9f')}
+  else if(t==='S'){P.shield=480;flash('실드 ON','#9cf')}
+  else if(t==='H'){if(S.lives<5){S.lives++;flash('+1 LIFE','#f88')}else{S.score+=200;flash('+200','#f88')}}
+  else if(t==='M'){P.mult=600;flash('점수 ×2','#fd4')}
+  else if(t==='G'){P.gauge=Math.min(100,P.gauge+35);flash('+게이지','#cf6')}
+  else if(t==='B'){bombClear();flash('💥 폭탄!','#f63')}
+}
+function bombClear(){
+  for(const e of enemies){explode(e.x,e.y,'#f80',24);S.score+=Math.floor((e.t.score/2)*(P.mult>0?2:1))}
+  enemies.length=0;ebullets.length=0;S.screenShake=20;updateHUD();
+}
+function tryUseSpecial(){
+  if(P.gauge<100)return;
+  P.gauge=0;S.laserTimer=50;S.screenShake=12;flash('⚡ 메가 레이저','#ff0');updateHUD();
+}
+function shoot(){
+  const cd=P.fireBoost>0?5:10;
+  if(S.shootCD>0)return;S.shootCD=cd;
+  const lv=P.wLv;
+  bullets.push({x:P.x,y:P.y-18,vx:0,vy:-11,w:4,h:12,dmg:1});
+  if(lv>=2){bullets.push({x:P.x-10,y:P.y-12,vx:0,vy:-11,w:3,h:10,dmg:1});bullets.push({x:P.x+10,y:P.y-12,vx:0,vy:-11,w:3,h:10,dmg:1})}
+  if(lv>=3){bullets.push({x:P.x-14,y:P.y-8,vx:-1.5,vy:-10,w:3,h:10,dmg:1});bullets.push({x:P.x+14,y:P.y-8,vx:1.5,vy:-10,w:3,h:10,dmg:1})}
+  if(lv>=4){bullets.push({x:P.x-18,y:P.y-4,vx:-3,vy:-9,w:3,h:10,dmg:1});bullets.push({x:P.x+18,y:P.y-4,vx:3,vy:-9,w:3,h:10,dmg:1})}
+  if(lv>=5){bullets.push({x:P.x,y:P.y-22,vx:0,vy:-13,w:6,h:16,dmg:2})}
+}
+function explode(x,y,color,n=14){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,sp=Math.random()*3+1;parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:30+Math.random()*20,color})}}
+function rect(a,b){return a.x-a.w/2<b.x+b.w/2&&a.x+a.w/2>b.x-b.w/2&&a.y-a.h/2<b.y+b.h/2&&a.y+a.h/2>b.y-b.h/2}
 
-  const keys = {};
-  window.addEventListener('keydown', e => {
-    keys[e.key.toLowerCase()] = true;
-    if ([' ', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(e.key.toLowerCase())) {
-      e.preventDefault();
-    }
-    if (e.key.toLowerCase() === 'p' && state.running) togglePause();
-  });
-  window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+function update(){
+  if(!S.running||S.paused)return;
+  for(const s of S.stars){s.y+=s.v;if(s.y>H){s.y=0;s.x=Math.random()*W}}
+  if(keys['arrowleft']||keys['a'])P.x-=P.speed;
+  if(keys['arrowright']||keys['d'])P.x+=P.speed;
+  if(keys['arrowup']||keys['w'])P.y-=P.speed;
+  if(keys['arrowdown']||keys['s'])P.y+=P.speed;
+  P.x=Math.max(P.w/2,Math.min(W-P.w/2,P.x));P.y=Math.max(P.h/2,Math.min(H-P.h/2,P.y));
+  if(keys[' '])shoot();
+  if(S.shootCD>0)S.shootCD--;
+  if(P.invuln>0)P.invuln--;
+  if(P.fireBoost>0){P.fireBoost--;if(P.fireBoost===0)updateHUD()}
+  if(P.shield>0){P.shield--;if(P.shield===0)updateHUD()}
+  if(P.mult>0){P.mult--;if(P.mult===0)updateHUD()}
+  if(S.laserTimer>0)S.laserTimer--;
+  if(S.screenShake>0)S.screenShake--;
 
-  const state = {
-    running: false,
-    paused: false,
-    score: 0,
-    level: 1,
-    lives: 3,
-    spawnTimer: 0,
-    spawnInterval: 60,
-    shootCooldown: 0,
-    stars: [],
-  };
-
-  const player = {
-    x: W / 2, y: H - 60,
-    w: 36, h: 36,
-    speed: 5,
-    invuln: 0,
-  };
-
-  const bullets = [];
-  const enemies = [];
-  const enemyBullets = [];
-  const particles = [];
-
-  for (let i = 0; i < 80; i++) {
-    state.stars.push({
-      x: Math.random() * W,
-      y: Math.random() * H,
-      s: Math.random() * 1.5 + 0.3,
-      v: Math.random() * 1.5 + 0.5,
-    });
+  // spawn (no regular enemies during boss)
+  if(!S.boss){
+    S.spawnTimer++;
+    if(S.spawnTimer>=S.spawnInt){S.spawnTimer=0;spawnEnemy()}
+    // boss every 5 levels
+    if(S.level>=(S.bossesDefeated+1)*5)spawnBoss();
   }
 
-  function reset() {
-    state.score = 0;
-    state.level = 1;
-    state.lives = 3;
-    state.spawnTimer = 0;
-    state.spawnInterval = 60;
-    state.shootCooldown = 0;
-    player.x = W / 2;
-    player.y = H - 60;
-    player.invuln = 0;
-    bullets.length = 0;
-    enemies.length = 0;
-    enemyBullets.length = 0;
-    particles.length = 0;
-    updateHUD();
+  // bullets
+  for(let i=bullets.length-1;i>=0;i--){const b=bullets[i];b.y+=b.vy;b.x+=b.vx||0;if(b.y<-20||b.x<-20||b.x>W+20)bullets.splice(i,1)}
+  for(let i=ebullets.length-1;i>=0;i--){const b=ebullets[i];b.y+=b.vy;b.x+=b.vx||0;if(b.y>H+20||b.y<-20||b.x<-20||b.x>W+20)ebullets.splice(i,1)}
+
+  // mega laser damage
+  if(S.laserTimer>0){
+    const lx=P.x,lw=24;
+    for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];if(e.x>lx-lw&&e.x<lx+lw&&e.y<P.y){e.hp-=2;explode(e.x,e.y,'#ff6',4);if(e.hp<=0){killEnemy(i)}}}
+    if(S.boss&&S.boss.x>lx-lw&&S.boss.x<lx+lw){S.boss.hp-=3;explode(S.boss.x,S.boss.y+30,'#ff6',4)}
+    for(let i=ebullets.length-1;i>=0;i--){const b=ebullets[i];if(b.x>lx-lw&&b.x<lx+lw)ebullets.splice(i,1)}
   }
 
-  function updateHUD() {
-    scoreEl.textContent = state.score;
-    levelEl.textContent = state.level;
-    livesEl.textContent = state.lives;
+  // enemies
+  for(let i=enemies.length-1;i>=0;i--){
+    const e=enemies[i];
+    e.phase+=.05;
+    if(e.t.zig)e.x+=Math.sin(e.phase*2)*3;else e.x+=e.vx;
+    e.y+=e.vy;
+    if(e.x<e.w/2||e.x>W-e.w/2)e.vx*=-1;
+    if(e.t.shoots){e.shootTimer--;if(e.shootTimer<=0&&e.y>0&&e.y<H*.6){ebullets.push({x:e.x,y:e.y+12,vx:0,vy:5,w:5,h:10});e.shootTimer=80+Math.random()*60}}
+    if(e.t.spin){e.shootTimer--;if(e.shootTimer<=0&&e.y>20&&e.y<H*.5){for(let k=0;k<6;k++){const a=e.phase+k*Math.PI/3;ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*3,vy:Math.sin(a)*3+1,w:4,h:8})}e.shootTimer=120+Math.random()*60}}
+    if(e.y>H+30){enemies.splice(i,1);continue}
+
+    for(let j=bullets.length-1;j>=0;j--){
+      if(rect(e,bullets[j])){const dmg=bullets[j].dmg||1;bullets.splice(j,1);e.hp-=dmg;explode(e.x,e.y,'#fc6',5);if(e.hp<=0){killEnemy(i);break}}
+    }
+    if(P.invuln===0&&P.shield===0&&S.running&&rect(e,P)){explode(e.x,e.y,'#f84',18);enemies.splice(i,1);hitPlayer()}
+    else if(P.shield>0&&rect(e,P)){explode(e.x,e.y,'#9cf',12);enemies.splice(i,1);S.score+=Math.floor(e.t.score*(P.mult>0?2:1));updateHUD()}
   }
 
-  function spawnEnemy() {
-    const type = Math.random() < 0.18 + state.level * 0.02 ? 'shooter' : 'basic';
-    const w = type === 'shooter' ? 36 : 30;
-    enemies.push({
-      x: Math.random() * (W - w - 20) + 10,
-      y: -30,
-      w, h: w,
-      vx: (Math.random() - 0.5) * (1 + state.level * 0.2),
-      vy: 1 + Math.random() * 1.2 + state.level * 0.15,
-      hp: type === 'shooter' ? 2 : 1,
-      type,
-      shootTimer: 60 + Math.random() * 60,
-    });
-  }
-
-  function shoot() {
-    if (state.shootCooldown > 0) return;
-    state.shootCooldown = 10;
-    bullets.push({ x: player.x, y: player.y - 18, vy: -10, w: 4, h: 12 });
-    if (state.level >= 3) {
-      bullets.push({ x: player.x - 12, y: player.y - 10, vy: -10, vx: -1, w: 3, h: 10 });
-      bullets.push({ x: player.x + 12, y: player.y - 10, vy: -10, vx: 1, w: 3, h: 10 });
-    }
-  }
-
-  function explode(x, y, color, count = 14) {
-    for (let i = 0; i < count; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const sp = Math.random() * 3 + 1;
-      particles.push({
-        x, y,
-        vx: Math.cos(a) * sp,
-        vy: Math.sin(a) * sp,
-        life: 30 + Math.random() * 20,
-        color,
-      });
-    }
-  }
-
-  function rectsCollide(a, b) {
-    return a.x - a.w/2 < b.x + b.w/2 &&
-           a.x + a.w/2 > b.x - b.w/2 &&
-           a.y - a.h/2 < b.y + b.h/2 &&
-           a.y + a.h/2 > b.y - b.h/2;
-  }
-
-  function update() {
-    if (!state.running || state.paused) return;
-
-    for (const s of state.stars) {
-      s.y += s.v;
-      if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
-    }
-
-    if (keys['arrowleft'] || keys['a']) player.x -= player.speed;
-    if (keys['arrowright'] || keys['d']) player.x += player.speed;
-    if (keys['arrowup'] || keys['w']) player.y -= player.speed;
-    if (keys['arrowdown'] || keys['s']) player.y += player.speed;
-    player.x = Math.max(player.w/2, Math.min(W - player.w/2, player.x));
-    player.y = Math.max(player.h/2, Math.min(H - player.h/2, player.y));
-
-    if (keys[' ']) shoot();
-    if (state.shootCooldown > 0) state.shootCooldown--;
-    if (player.invuln > 0) player.invuln--;
-
-    state.spawnTimer++;
-    if (state.spawnTimer >= state.spawnInterval) {
-      state.spawnTimer = 0;
-      spawnEnemy();
-    }
-
-    for (let i = bullets.length - 1; i >= 0; i--) {
-      const b = bullets[i];
-      b.y += b.vy;
-      if (b.vx) b.x += b.vx;
-      if (b.y < -20 || b.x < -20 || b.x > W + 20) bullets.splice(i, 1);
-    }
-
-    for (let i = enemyBullets.length - 1; i >= 0; i--) {
-      const b = enemyBullets[i];
-      b.y += b.vy;
-      if (b.y > H + 20) enemyBullets.splice(i, 1);
-    }
-
-    for (let i = enemies.length - 1; i >= 0; i--) {
-      const e = enemies[i];
-      e.x += e.vx;
-      e.y += e.vy;
-      if (e.x < e.w/2 || e.x > W - e.w/2) e.vx *= -1;
-
-      if (e.type === 'shooter') {
-        e.shootTimer--;
-        if (e.shootTimer <= 0 && e.y > 0 && e.y < H * 0.6) {
-          enemyBullets.push({ x: e.x, y: e.y + 14, vy: 5, w: 4, h: 10 });
-          e.shootTimer = 90 + Math.random() * 60;
-        }
-      }
-
-      if (e.y > H + 30) {
-        enemies.splice(i, 1);
-        continue;
-      }
-
-      for (let j = bullets.length - 1; j >= 0; j--) {
-        if (rectsCollide(e, bullets[j])) {
-          bullets.splice(j, 1);
-          e.hp--;
-          explode(e.x, e.y, '#fc6', 6);
-          if (e.hp <= 0) {
-            explode(e.x, e.y, '#f84', 18);
-            enemies.splice(i, 1);
-            state.score += e.type === 'shooter' ? 30 : 10;
-            const newLevel = Math.floor(state.score / 200) + 1;
-            if (newLevel !== state.level) {
-              state.level = newLevel;
-              state.spawnInterval = Math.max(20, 60 - state.level * 4);
-            }
-            updateHUD();
-          }
-          break;
-        }
-      }
-
-      if (player.invuln === 0 && rectsCollide(e, player)) {
-        explode(e.x, e.y, '#f84', 18);
-        enemies.splice(i, 1);
-        hitPlayer();
+  // boss
+  if(S.boss){
+    const b=S.boss;
+    if(b.y<60)b.y+=1;else{b.x+=b.vx;if(b.x<b.w/2+10||b.x>W-b.w/2-10)b.vx*=-1;b.weakX=Math.sin(b.phase*.05)*30;b.phase++;b.patternTimer--;
+      if(b.patternTimer<=0){b.pattern=(b.pattern+1)%3;b.patternTimer=120}
+      if(b.phase%14===0){
+        if(b.pattern===0){for(let k=-2;k<=2;k++)ebullets.push({x:b.x,y:b.y+40,vx:k*1.5,vy:4,w:5,h:10})}
+        else if(b.pattern===1){const dx=P.x-b.x,dy=P.y-b.y,d=Math.hypot(dx,dy);ebullets.push({x:b.x,y:b.y+40,vx:dx/d*5,vy:dy/d*5,w:6,h:10})}
+        else{for(let k=0;k<8;k++){const a=b.phase*.05+k*Math.PI/4;ebullets.push({x:b.x,y:b.y+20,vx:Math.cos(a)*3,vy:Math.sin(a)*3+1,w:4,h:8})}}
       }
     }
-
-    for (let i = enemyBullets.length - 1; i >= 0; i--) {
-      if (player.invuln === 0 && rectsCollide(enemyBullets[i], player)) {
-        enemyBullets.splice(i, 1);
-        hitPlayer();
+    bossBarFill.style.width=Math.max(0,b.hp/b.maxhp*100)+'%';
+    // bullets vs boss
+    for(let j=bullets.length-1;j>=0;j--){
+      const bl=bullets[j];
+      if(rect(b,bl)){
+        // weak point check (a small region near b.x+b.weakX, b.y+b.weakY-5)
+        const wx=b.x+b.weakX,wy=b.y+b.weakY-5;
+        const isWeak=Math.abs(bl.x-wx)<14&&Math.abs(bl.y-wy)<14;
+        const dmg=(bl.dmg||1)*(isWeak?3:1);
+        b.hp-=dmg;
+        bullets.splice(j,1);
+        explode(bl.x,bl.y,isWeak?'#ff0':'#fc6',isWeak?10:4);
+        if(isWeak)S.screenShake=Math.max(S.screenShake,4);
       }
     }
-
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
-      p.x += p.vx; p.y += p.vy;
-      p.vx *= 0.96; p.vy *= 0.96;
-      p.life--;
-      if (p.life <= 0) particles.splice(i, 1);
+    if(P.invuln===0&&P.shield===0&&rect(b,P))hitPlayer();
+    if(b.hp<=0){
+      explode(b.x,b.y,'#f80',60);explode(b.x,b.y,'#ff6',40);S.screenShake=30;
+      S.score+=500*(P.mult>0?2:1);S.bossesDefeated++;
+      for(let k=0;k<3;k++)dropItem(b.x+(k-1)*30,b.y);
+      P.gauge=Math.min(100,P.gauge+50);
+      flash('보스 격파!','#ff6');
+      S.boss=null;bossBar.style.display='none';updateHUD();
     }
   }
 
-  function hitPlayer() {
-    state.lives--;
-    player.invuln = 90;
-    explode(player.x, player.y, '#6df', 22);
-    updateHUD();
-    if (state.lives <= 0) gameOver();
+  // enemy bullets vs player
+  for(let i=ebullets.length-1;i>=0;i--){
+    if(P.invuln===0&&P.shield===0&&rect(ebullets[i],P)){ebullets.splice(i,1);hitPlayer()}
+    else if(P.shield>0&&rect(ebullets[i],P)){ebullets.splice(i,1);explode(P.x,P.y,'#9cf',6)}
   }
 
-  function gameOver() {
-    state.running = false;
-    overlayTitle.textContent = '게임 오버';
-    overlay.querySelector('p').innerHTML = `최종 점수: <b>${state.score}</b> &nbsp;·&nbsp; 레벨 ${state.level}`;
-    startBtn.textContent = '다시 시작';
-    overlay.classList.remove('hidden');
+  // items
+  for(let i=items.length-1;i>=0;i--){
+    const it=items[i];it.y+=it.vy;it.phase+=.1;
+    if(it.y>H+20){items.splice(i,1);continue}
+    if(rect({x:it.x,y:it.y,w:18,h:18},P)){applyItem(it.type);items.splice(i,1)}
   }
 
-  function togglePause() {
-    state.paused = !state.paused;
-    if (state.paused) {
-      overlayTitle.textContent = '일시정지';
-      overlay.querySelector('p').textContent = 'P 키를 눌러 계속하기';
-      startBtn.textContent = '계속';
-      overlay.classList.remove('hidden');
-    } else {
-      overlay.classList.add('hidden');
+  // particles
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.x+=p.vx;p.y+=p.vy;p.vx*=.96;p.vy*=.96;p.life--;if(p.life<=0)parts.splice(i,1)}
+}
+
+function killEnemy(i){
+  const e=enemies[i];
+  explode(e.x,e.y,'#f84',18);
+  S.score+=Math.floor(e.t.score*(P.mult>0?2:1));
+  P.gauge=Math.min(100,P.gauge+(e.type==='tank'?8:e.type==='spinner'?5:3));
+  if(Math.random()<e.t.drop)dropItem(e.x,e.y);
+  enemies.splice(i,1);
+  const newLv=Math.floor(S.score/200)+1;
+  if(newLv!==S.level){
+    S.level=newLv;S.spawnInt=Math.max(20,60-S.level*3);
+    flash('LEVEL '+S.level+' UP!','#ff6');
+    if(S.lives<5)S.lives++;
+    if(S.level%3===0&&P.wLv<5){P.wLv++;flash('무기 LV'+P.wLv,'#fc6')}
+  }
+  updateHUD();
+}
+
+function hitPlayer(){
+  S.lives--;P.invuln=90;explode(P.x,P.y,'#6df',22);S.screenShake=10;updateHUD();
+  if(S.lives<=0)gameOver();
+}
+
+// RENDERING
+function drawShip(x,y,w,h,c){ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(x,y-h/2);ctx.lineTo(x+w/2,y+h/2);ctx.lineTo(x,y+h/4);ctx.lineTo(x-w/2,y+h/2);ctx.closePath();ctx.fill();ctx.fillStyle='#fff';ctx.fillRect(x-2,y-4,4,8)}
+function drawEnemy(e){
+  ctx.fillStyle=e.t.color;
+  if(e.type==='shooter'){ctx.beginPath();ctx.moveTo(e.x,e.y+e.h/2);ctx.lineTo(e.x+e.w/2,e.y-e.h/2);ctx.lineTo(e.x-e.w/2,e.y-e.h/2);ctx.closePath();ctx.fill();ctx.fillStyle='#ff0';ctx.fillRect(e.x-3,e.y-3,6,6)}
+  else if(e.type==='zigzag'){ctx.beginPath();ctx.moveTo(e.x,e.y-e.h/2);ctx.lineTo(e.x+e.w/2,e.y);ctx.lineTo(e.x,e.y+e.h/2);ctx.lineTo(e.x-e.w/2,e.y);ctx.closePath();ctx.fill();ctx.fillStyle='#036';ctx.fillRect(e.x-3,e.y-3,6,6)}
+  else if(e.type==='tank'){ctx.fillRect(e.x-e.w/2,e.y-e.h/2,e.w,e.h);ctx.fillStyle='#666';ctx.fillRect(e.x-e.w/2+4,e.y-e.h/2+4,e.w-8,e.h-8);ctx.fillStyle='#f33';ctx.fillRect(e.x-6,e.y-4,12,8)}
+  else if(e.type==='spinner'){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.phase);ctx.beginPath();for(let k=0;k<6;k++){const a=k*Math.PI/3;ctx.lineTo(Math.cos(a)*e.w/2,Math.sin(a)*e.w/2)}ctx.closePath();ctx.fill();ctx.fillStyle='#306';ctx.fillRect(-4,-4,8,8);ctx.restore()}
+  else{ctx.beginPath();ctx.moveTo(e.x,e.y+e.h/2);ctx.lineTo(e.x+e.w/2,e.y);ctx.lineTo(e.x,e.y-e.h/2);ctx.lineTo(e.x-e.w/2,e.y);ctx.closePath();ctx.fill();ctx.fillStyle='#063';ctx.fillRect(e.x-4,e.y-2,8,4)}
+  // hp bar for tougher
+  if(e.maxhp>1){const r=e.hp/e.maxhp;ctx.fillStyle='#400';ctx.fillRect(e.x-e.w/2,e.y-e.h/2-6,e.w,3);ctx.fillStyle='#f44';ctx.fillRect(e.x-e.w/2,e.y-e.h/2-6,e.w*r,3)}
+}
+function drawBoss(b){
+  ctx.fillStyle='#642';ctx.fillRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h);
+  ctx.fillStyle='#864';ctx.fillRect(b.x-b.w/2+8,b.y-b.h/2+8,b.w-16,b.h-16);
+  // turrets
+  ctx.fillStyle='#333';ctx.fillRect(b.x-b.w/2-6,b.y-10,8,20);ctx.fillRect(b.x+b.w/2-2,b.y-10,8,20);
+  // weak point (red glowing core)
+  const wx=b.x+b.weakX,wy=b.y+b.weakY-5,pulse=Math.sin(b.phase*.15)*3+10;
+  ctx.fillStyle='#a00';ctx.beginPath();ctx.arc(wx,wy,pulse+4,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#f44';ctx.beginPath();ctx.arc(wx,wy,pulse,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ff8';ctx.beginPath();ctx.arc(wx,wy,pulse-4,0,Math.PI*2);ctx.fill();
+}
+const ICOLORS={W:'#fc6',R:'#f9f',S:'#9cf',H:'#f88',M:'#fd4',G:'#cf6',B:'#f63'};
+function drawItem(it){
+  const pulse=Math.sin(it.phase)*2;
+  ctx.fillStyle=ICOLORS[it.type];
+  ctx.fillRect(it.x-9,it.y-9-pulse/2,18,18);
+  ctx.fillStyle='#000';ctx.font='bold 13px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(it.type,it.x,it.y-pulse/2);
+  ctx.textAlign='start';ctx.textBaseline='alphabetic';
+}
+function render(){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  let sx=0,sy=0;if(S.screenShake>0){sx=(Math.random()-.5)*S.screenShake;sy=(Math.random()-.5)*S.screenShake;ctx.save();ctx.translate(sx,sy)}
+  // stars
+  ctx.fillStyle='#fff';for(const s of S.stars){ctx.globalAlpha=Math.min(1,s.s/1.5);ctx.fillRect(s.x,s.y,s.s,s.s)}ctx.globalAlpha=1;
+  // mega laser
+  if(S.laserTimer>0){const a=S.laserTimer/50;ctx.fillStyle='rgba(255,255,150,'+(.3+a*.4)+')';ctx.fillRect(P.x-30,0,60,P.y);ctx.fillStyle='rgba(255,255,255,'+(.6+a*.4)+')';ctx.fillRect(P.x-12,0,24,P.y);ctx.fillStyle='#fff';ctx.fillRect(P.x-3,0,6,P.y)}
+  // bullets
+  ctx.fillStyle='#6df';for(const b of bullets){ctx.fillRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h)}
+  ctx.fillStyle='#f66';for(const b of ebullets){ctx.fillRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h)}
+  // items
+  for(const it of items)drawItem(it);
+  // enemies
+  for(const e of enemies)drawEnemy(e);
+  if(S.boss)drawBoss(S.boss);
+  // player
+  if(S.running){
+    const blink=P.invuln>0&&Math.floor(P.invuln/6)%2===0;
+    if(!blink){
+      drawShip(P.x,P.y,P.w,P.h,'#6df');
+      if(P.shield>0){ctx.strokeStyle='rgba(150,200,255,'+(.4+Math.sin(Date.now()*.01)*.3)+')';ctx.lineWidth=2;ctx.beginPath();ctx.arc(P.x,P.y,P.w*.9,0,Math.PI*2);ctx.stroke();ctx.lineWidth=1}
     }
   }
+  // particles
+  for(const p of parts){ctx.globalAlpha=Math.max(0,p.life/50);ctx.fillStyle=p.color;ctx.fillRect(p.x-2,p.y-2,3,3)}ctx.globalAlpha=1;
+  if(S.screenShake>0)ctx.restore();
+}
+function loop(){update();render();requestAnimationFrame(loop)}
 
-  function drawShip(x, y, w, h, color) {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(x, y - h/2);
-    ctx.lineTo(x + w/2, y + h/2);
-    ctx.lineTo(x, y + h/4);
-    ctx.lineTo(x - w/2, y + h/2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(x - 2, y - 4, 4, 8);
+// RANKING
+function getScores(){try{return JSON.parse(localStorage.getItem(RANK_KEY)||'[]')}catch{return[]}}
+function saveScores(arr){try{localStorage.setItem(RANK_KEY,JSON.stringify(arr))}catch{}}
+function qualifies(score){const s=getScores();return s.length<10||score>s[s.length-1].score}
+function addScore(name,score,level){const s=getScores();s.push({name:name||'???',score,level,date:Date.now()});s.sort((a,b)=>b.score-a.score);return saveScores(s.slice(0,10)),s.slice(0,10)}
+function renderRank(highlightIdx=-1){
+  const s=getScores();
+  if(s.length===0){rankBox.innerHTML='<p><small>아직 기록 없음</small></p>';return}
+  let html='<table><tr><th>#</th><th>NAME</th><th>SCORE</th><th>LV</th></tr>';
+  s.forEach((r,i)=>{html+=`<tr class="${i===highlightIdx?'me':''}"><td>${i+1}</td><td>${r.name}</td><td>${r.score}</td><td>${r.level}</td></tr>`});
+  html+='</table>';rankBox.innerHTML=html;
+}
+
+function gameOver(){
+  S.running=false;title.textContent='게임 오버';intro.classList.add('hidden');
+  if(qualifies(S.score)){
+    pendingScore={score:S.score,level:S.level};
+    nameBox.classList.remove('hidden');rankBox.classList.add('hidden');
+    nameInput.value='';setTimeout(()=>nameInput.focus(),100);
+    startBtn.textContent='기록 저장';
+  }else{
+    nameBox.classList.add('hidden');rankBox.classList.remove('hidden');
+    rankBox.innerHTML=`<p>최종 점수 <b style="color:#ff6">${S.score}</b> · 레벨 ${S.level}</p>`;
+    renderRank();
+    const div=document.createElement('div');rankBox.appendChild(div);
+    startBtn.textContent='다시 시작';
   }
+  overlay.classList.remove('hidden');
+}
 
-  function drawEnemy(e) {
-    if (e.type === 'shooter') {
-      ctx.fillStyle = '#f48';
-      ctx.beginPath();
-      ctx.moveTo(e.x, e.y + e.h/2);
-      ctx.lineTo(e.x + e.w/2, e.y - e.h/2);
-      ctx.lineTo(e.x - e.w/2, e.y - e.h/2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#ff0';
-      ctx.fillRect(e.x - 3, e.y - 3, 6, 6);
-    } else {
-      ctx.fillStyle = '#8f6';
-      ctx.beginPath();
-      ctx.moveTo(e.x, e.y + e.h/2);
-      ctx.lineTo(e.x + e.w/2, e.y);
-      ctx.lineTo(e.x, e.y - e.h/2);
-      ctx.lineTo(e.x - e.w/2, e.y);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#063';
-      ctx.fillRect(e.x - 4, e.y - 2, 8, 4);
-    }
+nameInput.addEventListener('keydown',e=>{if(e.key==='Enter')startBtn.click()});
+
+startBtn.addEventListener('click',()=>{
+  if(S.paused){S.paused=false;overlay.classList.add('hidden');return}
+  if(pendingScore){
+    const name=(nameInput.value||'???').trim().toUpperCase().slice(0,8);
+    const top=addScore(name,pendingScore.score,pendingScore.level);
+    const idx=top.findIndex(r=>r.name===name&&r.score===pendingScore.score);
+    pendingScore=null;
+    nameBox.classList.add('hidden');rankBox.classList.remove('hidden');
+    rankBox.innerHTML=`<p>🏆 신기록!</p>`;
+    const tableDiv=document.createElement('div');rankBox.appendChild(tableDiv);
+    renderRank(idx);
+    startBtn.textContent='다시 시작';
+    return;
   }
+  reset();S.running=true;intro.classList.add('hidden');rankBox.classList.add('hidden');nameBox.classList.add('hidden');overlay.classList.add('hidden');
+});
 
-  function render() {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, W, H);
+// initial overlay shows intro + rankings preview
+renderRank();
+rankBox.classList.remove('hidden');
 
-    ctx.fillStyle = '#fff';
-    for (const s of state.stars) {
-      ctx.globalAlpha = Math.min(1, s.s / 1.5);
-      ctx.fillRect(s.x, s.y, s.s, s.s);
-    }
-    ctx.globalAlpha = 1;
-
-    ctx.fillStyle = '#6df';
-    for (const b of bullets) {
-      ctx.fillRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
-    }
-
-    ctx.fillStyle = '#f66';
-    for (const b of enemyBullets) {
-      ctx.fillRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
-    }
-
-    for (const e of enemies) drawEnemy(e);
-
-    if (state.running) {
-      const blink = player.invuln > 0 && Math.floor(player.invuln / 6) % 2 === 0;
-      if (!blink) drawShip(player.x, player.y, player.w, player.h, '#6df');
-    }
-
-    for (const p of particles) {
-      ctx.globalAlpha = Math.max(0, p.life / 50);
-      ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - 2, p.y - 2, 3, 3);
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  function loop() {
-    update();
-    render();
-    requestAnimationFrame(loop);
-  }
-
-  startBtn.addEventListener('click', () => {
-    if (state.paused) {
-      state.paused = false;
-      overlay.classList.add('hidden');
-      return;
-    }
-    reset();
-    state.running = true;
-    overlay.classList.add('hidden');
-  });
-
-  loop();
+loop();
 })();
 </script>
 </body>
