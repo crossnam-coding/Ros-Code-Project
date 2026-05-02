@@ -259,8 +259,9 @@ function buildNebula(){
   for(const n of neb){const g=nc.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r);g.addColorStop(0,n.c);g.addColorStop(1,'transparent');nc.fillStyle=g;nc.fillRect(0,0,W,H)}
 }
 buildNebula();
-function reset(){S.score=0;S.level=1;S.lives=3;S.maxLives=5;S.maxBombs=5;S.maxShields=3;S.maxHeals=5;S.spawnTimer=0;S.spawnInt=60;S.shootCD=0;S.boss=null;S.bossesDefeated=0;S.nextBossLevel=STAGE_LEN;S.laserTimer=0;S.screenShake=0;S.combo=0;S.comboTimer=0;S.scoreMul=1;S.coinMul=1;S.goldenSpawned=0;S.sessionCoins=0;P.x=W/2;P.y=H-70;P.invuln=0;P.wLv=1;P.fireBoost=0;P.shield=0;P.mult=0;P.gauge=0;P.bombs=0;P.shields=0;P.heals=0;P.speed=5;P.w=36;P.h=36;P.shrink=0;P.rear=false;P.pierce=false;P.permRapid=false;P.gaugeMul=1;P.spdL=0;P.rateL=0;P.invulnL=0;P.gMulL=0;P.sMulL=0;P.hitL=0;P.droneL=0;P.lifeL=0;bullets.length=ebullets.length=enemies.length=items.length=parts.length=popups.length=drones.length=shocks.length=0;S.flashOverlay=0;bossBar.style.display='none';META.continued=false;applyUpgrades();const d=getDaily();d.mod(S);dailyEl.textContent='오늘의 챌린지: '+d.n;updateHUD()}
-function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent='S'+getStage()+'·'+S.level;const ml=S.maxLives||5;if(ml>6){livesEl.innerHTML='<span style="color:#f66;text-shadow:0 0 4px #f00">♥ ×'+S.lives+'</span><span style="color:#666;font-size:11px"> /'+ml+'</span>'}else{livesEl.innerHTML='<span style="color:#f66;text-shadow:0 0 4px #f00">'+'♥'.repeat(Math.max(0,S.lives))+'</span><span style="color:#444">'+'♥'.repeat(Math.max(0,ml-S.lives))+'</span>'}gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';sBomb.textContent=P.bombs+'/'+S.maxBombs;sShield.textContent=P.shields+'/'+S.maxShields;sHeal.textContent=P.heals+'/'+S.maxHeals;coinsEl.textContent=META.coins+S.sessionCoins;let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';if(P.shrink>0)b+='미니 ';buffsEl.textContent=b;if(S.combo>=3){const m=comboMult();comboEl.style.color=m>=5?'#f6f':m>=3?'#ff6':'#cf6';comboEl.style.fontSize=(14+Math.min(20,S.combo))+'px';comboEl.textContent='COMBO '+S.combo+' ×'+m}else{comboEl.textContent=''}}
+function reset(){S.score=0;S.level=1;S.lives=3;S.maxLives=5;S.maxBombs=5;S.maxShields=3;S.maxHeals=5;S.spawnTimer=0;S.spawnInt=60;S.shootCD=0;S.boss=null;S.bossesDefeated=0;S.nextBossLevel=STAGE_LEN;S.laserTimer=0;S.screenShake=0;S.combo=0;S.comboTimer=0;S.scoreMul=1;S.coinMul=1;S.goldenSpawned=0;S.sessionCoins=0;P.x=W/2;P.y=H-70;P.invuln=0;P.wLv=1;P.fireBoost=0;P.shield=0;P.mult=0;P.gauge=0;P.bombs=0;P.shields=0;P.heals=0;P.speed=5;P.w=36;P.h=36;P.shrink=0;P.rear=false;P.pierce=false;P.permRapid=false;P.gaugeMul=1;P.vampiric=false;P.vampKills=0;P.berserker=false;P.magnet=false;P.ricochet=false;P.crit=false;P.phoenix=0;P.spdL=0;P.rateL=0;P.invulnL=0;P.gMulL=0;P.sMulL=0;P.hitL=0;P.droneL=0;P.lifeL=0;bullets.length=ebullets.length=enemies.length=items.length=parts.length=popups.length=drones.length=shocks.length=0;S.flashOverlay=0;bossBar.style.display='none';META.continued=false;applyUpgrades();const d=getDaily();d.mod(S);dailyEl.textContent='오늘의 챌린지: '+d.n;updateHUD()}
+function updateHUD(){scoreEl.textContent=S.score;lvlEl.textContent='S'+getStage()+'·'+S.level;const ml=S.maxLives||5;if(ml>6){livesEl.innerHTML='<span style="color:#f66;text-shadow:0 0 4px #f00">♥ ×'+S.lives+'</span><span style="color:#666;font-size:11px"> /'+ml+'</span>'}else{livesEl.innerHTML='<span style="color:#f66;text-shadow:0 0 4px #f00">'+'♥'.repeat(Math.max(0,S.lives))+'</span><span style="color:#444">'+'♥'.repeat(Math.max(0,ml-S.lives))+'</span>'}gTxt.textContent=Math.floor(P.gauge);gBar.style.width=P.gauge+'%';gBar.style.background=P.gauge>=100?'linear-gradient(90deg,#ff6,#fff,#ff6)':'linear-gradient(90deg,#6df,#fff)';sBomb.textContent=P.bombs+'/'+S.maxBombs;sShield.textContent=P.shields+'/'+S.maxShields;sHeal.textContent=P.heals+'/'+S.maxHeals;coinsEl.textContent=META.coins+S.sessionCoins;let b='';if(P.fireBoost>0)b+='연사 ';if(P.shield>0)b+='실드 ';if(P.mult>0)b+='×2 ';if(P.shrink>0)b+='미니 ';
+let bp='';if(P.vampiric)bp+='🩸';if(P.berserker)bp+='💢';if(P.magnet)bp+='🧲';if(P.ricochet)bp+='🌀';if(P.crit)bp+='🔥';if(P.phoenix>0)bp+='👻';if(P.rear)bp+='🔙';if(P.pierce)bp+='🔱';if(bp)b+='· '+bp;buffsEl.textContent=b;if(S.combo>=3){const m=comboMult();comboEl.style.color=m>=5?'#f6f':m>=3?'#ff6':'#cf6';comboEl.style.fontSize=(14+Math.min(20,S.combo))+'px';comboEl.textContent='COMBO '+S.combo+' ×'+m}else{comboEl.textContent=''}}
 function flash(t,c='#ff6'){flashEl.textContent=t;flashEl.style.color=c;flashEl.style.opacity=1;setTimeout(()=>flashEl.style.opacity=0,800)}
 const bigFlashEl=document.getElementById('bigFlash');
 function bigFlash(t,c='#fc6'){bigFlashEl.innerHTML=t;bigFlashEl.style.color=c;bigFlashEl.classList.add('show');setTimeout(()=>bigFlashEl.classList.remove('show'),2400)}
@@ -363,7 +364,14 @@ const REWARDS=[
   {id:'rear',n:'🔙 후방 발사',d:'뒤로도 사격',cond:()=>!P.rear,apply:()=>{P.rear=true}},
   {id:'pierce',n:'🔱 관통탄',d:'적을 관통하는 총알',cond:()=>!P.pierce,apply:()=>{P.pierce=true}},
   {id:'fullHeal',n:'💖 완전 회복',d:'생명 가득',cond:()=>true,apply:()=>{S.lives=S.maxLives||5}},
-  {id:'gaugeFull',n:'⚡ 특수기 즉시 충전',d:'게이지 100%',cond:()=>true,apply:()=>{P.gauge=100}}
+  {id:'gaugeFull',n:'⚡ 특수기 즉시 충전',d:'게이지 100%',cond:()=>true,apply:()=>{P.gauge=100}},
+  // ===== 빌드 정의형 (Build-defining) =====
+  {id:'vampiric',n:'🩸 흡혈',d:'10킬마다 생명 +1',cond:()=>!P.vampiric,apply:()=>{P.vampiric=true;P.vampKills=0}},
+  {id:'berserker',n:'💢 광폭',d:'생명 ≤2일 때 데미지·연사 ↑',cond:()=>!P.berserker,apply:()=>{P.berserker=true}},
+  {id:'magnet',n:'🧲 자석',d:'아이템 자동 끌어오기',cond:()=>!P.magnet,apply:()=>{P.magnet=true}},
+  {id:'ricochet',n:'🌀 도탄',d:'총알이 벽에 한 번 튕김',cond:()=>!P.ricochet,apply:()=>{P.ricochet=true}},
+  {id:'crit',n:'🔥 크리티컬',d:'20% 확률로 ×3 데미지',cond:()=>!P.crit,apply:()=>{P.crit=true}},
+  {id:'phoenix',n:'👻 불사조',d:'1회 자동 부활',cond:()=>!P.phoenix,apply:()=>{P.phoenix=1}}
 ];
 function autoReward(){
   const valid=REWARDS.filter(r=>r.cond());
@@ -513,7 +521,8 @@ function tryUseSpecial(){
   flash('⚡ 메가 레이저','#ff0');updateHUD();
 }
 function shoot(){
-  const cd=Math.max(3,((P.fireBoost>0||P.permRapid)?5:10)-(P.rateL||0));
+  const berserkBonus=(P.berserker&&S.lives<=2)?2:0;
+  const cd=Math.max(3,((P.fireBoost>0||P.permRapid)?5:10)-(P.rateL||0)-berserkBonus);
   if(S.shootCD>0)return;S.shootCD=cd;SFX.shoot();
   const lv=P.wLv;
   bullets.push({x:P.x,y:P.y-18,vx:0,vy:-11,w:4,h:12,dmg:1});
@@ -585,7 +594,9 @@ function update(){
   }
 
   // bullets
-  for(let i=bullets.length-1;i>=0;i--){const b=bullets[i];b.y+=b.vy;b.x+=b.vx||0;if(b.y<-20||b.x<-20||b.x>W+20)bullets.splice(i,1)}
+  for(let i=bullets.length-1;i>=0;i--){const b=bullets[i];b.y+=b.vy;b.x+=b.vx||0;
+    if(P.ricochet&&!b.bounced&&(b.x<3||b.x>W-3)){b.vx=-(b.vx||0);b.x=b.x<3?3:W-3;b.bounced=true}
+    if(b.y<-20||b.x<-20||b.x>W+20)bullets.splice(i,1)}
   for(let i=ebullets.length-1;i>=0;i--){const b=ebullets[i];b.y+=b.vy;b.x+=b.vx||0;if(b.y>H+20||b.y<-20||b.x<-20||b.x>W+20)ebullets.splice(i,1)}
 
   // mega laser damage
@@ -613,7 +624,9 @@ function update(){
     for(let j=bullets.length-1;j>=0;j--){
       const bl=bullets[j];
       if(rect(e,bl)){
-        const dmg=bl.dmg||1;
+        let dmg=bl.dmg||1;
+        if(P.berserker&&S.lives<=2)dmg*=1.5;
+        if(P.crit&&Math.random()<.20){dmg*=3;popup(e.x,e.y-8,'CRIT!','#f44')}
         if(bl.pierce){bl.hitsLeft=(bl.hitsLeft||3)-1;if(bl.hitsLeft<=0)bullets.splice(j,1)}
         else bullets.splice(j,1);
         e.hp-=dmg;explode(e.x,e.y,'#fc6',5);
@@ -644,9 +657,9 @@ function update(){
       b.patternTimer--;
       const numPatterns=Math.min(3+Math.floor(bSt/2),5);
       if(b.patternTimer<=0){b.pattern=(b.pattern+1)%numPatterns;b.patternTimer=Math.max(60,120-bSt*8)}
-      const fireInt=Math.max(6,16-bSt);
+      const fireInt=Math.max(4,16-bSt);
       if(b.phase%fireInt===0){
-        const speed=4+bSt*.3;
+        const speed=4+bSt*.45;
         if(b.pattern===0){const n=2+Math.floor(bSt/2);for(let k=-n;k<=n;k++)ebullets.push({x:b.x,y:b.y+40,vx:k*1.4,vy:speed,w:5,h:10})}
         else if(b.pattern===1){const dx=P.x-b.x,dy=P.y-b.y,d=Math.hypot(dx,dy);const burst=1+Math.floor(bSt/3);for(let k=0;k<burst;k++){const ang=Math.atan2(dy,dx)+(k-burst/2)*.15;ebullets.push({x:b.x,y:b.y+40,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed,w:6,h:10})}}
         else if(b.pattern===2){const cnt=6+bSt;for(let k=0;k<cnt;k++){const a=b.phase*.04+k*Math.PI*2/cnt;ebullets.push({x:b.x,y:b.y+20,vx:Math.cos(a)*3,vy:Math.sin(a)*3+1,w:4,h:8})}}
@@ -698,7 +711,9 @@ function update(){
 
   // items
   for(let i=items.length-1;i>=0;i--){
-    const it=items[i];it.y+=it.vy;it.phase+=.1;
+    const it=items[i];
+    if(P.magnet){const dx=P.x-it.x,dy=P.y-it.y,d=Math.hypot(dx,dy);if(d<260&&d>1){it.x+=dx/d*4.5;it.y+=dy/d*4.5}}
+    it.y+=it.vy;it.phase+=.1;
     if(it.y>H+20){items.splice(i,1);continue}
     if(rect({x:it.x,y:it.y,w:18,h:18},P)){applyItem(it.type);items.splice(i,1)}
   }
@@ -710,6 +725,7 @@ function update(){
 function killEnemy(i){
   const e=enemies[i];
   explode(e.x,e.y,e.gold?'#fd0':'#f84',e.gold?20:12);SFX.explode();
+  if(P.vampiric){P.vampKills=(P.vampKills||0)+1;if(P.vampKills>=10){P.vampKills=0;const ml=S.maxLives||5;if(S.lives<ml){S.lives++;flash('🩸 흡혈 +1','#f44')}}}
   addCombo();
   const baseScore=e.t.score*(e.gold?5:1);
   const upgMul=1+(upgLv('multi')||0)*.1;
@@ -937,6 +953,13 @@ function renderRank(highlightIdx=-1){
 }
 
 function gameOver(){
+  // Phoenix: one-time auto-revive while still in the game loop
+  if(P.phoenix>0){
+    P.phoenix--;S.lives=S.maxLives||5;P.invuln=120;P.gauge=Math.min(100,P.gauge+50);
+    bigFlash('👻 불사조 부활!','#fc6');SFX.heal();
+    for(let i=ebullets.length-1;i>=0;i--)ebullets.splice(i,1);
+    return;
+  }
   S.running=false;SFX.gameover();
   // commit session coins to META
   META.coins+=S.sessionCoins;saveCoins(META.coins);META.stats.runs++;saveStats(META.stats);checkAchievements();
