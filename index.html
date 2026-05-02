@@ -128,35 +128,34 @@ window.addEventListener('keydown',e=>{
   }
 });
 
-// ===== AUDIO (HTML5 Audio) =====
-let actx=null,masterGain=null,muted=false;
+// ===== AUDIO =====
+// Web Audio AudioBuffer is far cheaper per play than HTML5 Audio (no decode,
+// no DOM elements). It also tends to work on Safari even when OscillatorNode
+// stays silent. Keep HTML5 Audio + Blob URL as a fallback if Web Audio init
+// throws — sound output verification is left to the user (test button).
+let actx=null,masterGain=null,muted=false,_useWA=false;
 const muteIcon=document.getElementById('muteIcon');
 function syncMuteIcon(){if(muteIcon)muteIcon.textContent=muted?'🔇':'🔊';if(muteIcon)muteIcon.style.opacity=muted?'.4':'1'}
 function toggleMute(){muted=!muted;syncMuteIcon();flash(muted?'🔇 MUTE':'🔊 SOUND','#fff')}
 syncMuteIcon();
-if(muteIcon)muteIcon.addEventListener('click',e=>{e.stopPropagation();audioInit();toggleMute();if(!muted)setTimeout(()=>SFX.pickup(),50)});
+if(muteIcon)muteIcon.addEventListener('click',e=>{e.stopPropagation();audioInit();audioResume();toggleMute();if(!muted)setTimeout(()=>SFX.pickup(),50)});
 function audioInit(){
-  if(audioInit._unlocked)return;audioInit._unlocked=true;
+  if(audioInit._inited)return;audioInit._inited=true;
+  try{
+    actx=new (window.AudioContext||window.webkitAudioContext)();
+    masterGain=actx.createGain();masterGain.gain.value=0.6;
+    masterGain.connect(actx.destination);
+    if(actx.state==='suspended')actx.resume().catch(()=>{});
+    _useWA=true;
+  }catch(e){actx=null;_useWA=false}
+  // Always unlock HTML5 Audio path so it can serve as fallback
   try{const a=new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');a.volume=0;const p=a.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}
 }
-function audioResume(){}
-const _wavCache={},_audioCache={},_noop=()=>{};
-function _wavURI(samples,sr){
-  const len=samples.length,buf=new ArrayBuffer(44+len*2),dv=new DataView(buf);
-  dv.setUint32(0,0x52494646);dv.setUint32(4,36+len*2,true);dv.setUint32(8,0x57415645);
-  dv.setUint32(12,0x666d7420);dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
-  dv.setUint32(24,sr,true);dv.setUint32(28,sr*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);
-  dv.setUint32(36,0x64617461);dv.setUint32(40,len*2,true);
-  for(let i=0;i<len;i++)dv.setInt16(44+i*2,Math.max(-1,Math.min(1,samples[i]))*32767,true);
-  // Blob URL is far cheaper than base64 data URI for Safari to load/decode
-  return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
-}
-function _genTone(freq,dur,type,vol,slide){
-  const key='t|'+freq+'|'+dur+'|'+type+'|'+vol+'|'+slide;
-  if(_wavCache[key])return _wavCache[key];
-  const sr=22050,len=Math.max(1,Math.floor(sr*dur)),s=new Float32Array(len);
+function audioResume(){if(actx&&actx.state==='suspended')actx.resume().catch(()=>{})}
+const _bufCache={},_uriCache={},_audioCache={},_noop=()=>{};
+function _fillTone(s,sr,freq,dur,type,vol,slide){
   let phase=0;
-  for(let i=0;i<len;i++){
+  for(let i=0;i<s.length;i++){
     const tt=i/sr,f=Math.max(20,freq+(slide?slide*tt/dur:0));
     phase+=2*Math.PI*f/sr;
     let v;
@@ -168,32 +167,62 @@ function _genTone(freq,dur,type,vol,slide){
     const decay=Math.pow(0.0001,tt/dur);
     s[i]=v*vol*att*decay*0.7;
   }
-  return _wavCache[key]=_wavURI(s,sr);
 }
-function _genNoise(dur,vol,freq){
-  const key='n|'+dur+'|'+vol+'|'+freq;
-  if(_wavCache[key])return _wavCache[key];
-  const sr=22050,len=Math.max(1,Math.floor(sr*dur)),s=new Float32Array(len);
+function _fillNoise(s,sr,dur,vol,freq){
   const alpha=Math.min(1,Math.max(0.02,freq/(sr/2)));
   let last=0;
-  for(let i=0;i<len;i++){
+  for(let i=0;i<s.length;i++){
     const w=Math.random()*2-1;
     last=last+alpha*(w-last);
-    s[i]=last*vol*Math.max(0,1-i/len)*0.9;
+    s[i]=last*vol*Math.max(0,1-i/s.length)*0.9;
   }
-  return _wavCache[key]=_wavURI(s,sr);
 }
-// One Audio per unique sound. If it's still playing, drop the trigger
-// (avoids the costly currentTime=0 + play() restart on every shot).
-function _play(uri){
+function _wavURI(samples,sr){
+  const len=samples.length,buf=new ArrayBuffer(44+len*2),dv=new DataView(buf);
+  dv.setUint32(0,0x52494646);dv.setUint32(4,36+len*2,true);dv.setUint32(8,0x57415645);
+  dv.setUint32(12,0x666d7420);dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
+  dv.setUint32(24,sr,true);dv.setUint32(28,sr*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);
+  dv.setUint32(36,0x64617461);dv.setUint32(40,len*2,true);
+  for(let i=0;i<len;i++)dv.setInt16(44+i*2,Math.max(-1,Math.min(1,samples[i]))*32767,true);
+  return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+}
+function _playWA(key,dur,fill){
+  let buf=_bufCache[key];
+  if(!buf){
+    const sr=actx.sampleRate;
+    buf=actx.createBuffer(1,Math.max(1,Math.floor(sr*dur)),sr);
+    fill(buf.getChannelData(0),sr);
+    _bufCache[key]=buf;
+  }
+  const src=actx.createBufferSource();src.buffer=buf;src.connect(masterGain);src.start();
+}
+function _playHTML(k,dur,fill){
+  let uri=_uriCache[k];
+  if(!uri){
+    const sr=22050,arr=new Float32Array(Math.max(1,Math.floor(sr*dur)));
+    fill(arr,sr);
+    uri=_uriCache[k]=_wavURI(arr,sr);
+  }
   let a=_audioCache[uri];
   if(!a){a=new Audio();a.preload='auto';a.src=uri;a.volume=1.0;_audioCache[uri]=a;try{a.load()}catch(e){}}
   if(!a.paused&&!a.ended)return;
   if(a.currentTime>0)a.currentTime=0;
   const p=a.play();if(p&&p.catch)p.catch(_noop);
 }
-function tone(freq,dur,type='square',vol=1,slide=0){if(muted)return;_play(_genTone(freq,dur,type,vol,slide))}
-function noise(dur,vol=1,freq=1000){if(muted)return;_play(_genNoise(dur,vol,freq))}
+function tone(freq,dur,type='square',vol=1,slide=0){
+  if(muted)return;
+  const k='t|'+freq+'|'+dur+'|'+type+'|'+vol+'|'+slide;
+  const fill=(s,sr)=>_fillTone(s,sr,freq,dur,type,vol,slide);
+  if(_useWA&&actx&&actx.state==='running'){try{_playWA(k,dur,fill);return}catch(e){_useWA=false}}
+  _playHTML(k,dur,fill);
+}
+function noise(dur,vol=1,freq=1000){
+  if(muted)return;
+  const k='n|'+dur+'|'+vol+'|'+freq;
+  const fill=(s,sr)=>_fillNoise(s,sr,dur,vol,freq);
+  if(_useWA&&actx&&actx.state==='running'){try{_playWA(k,dur,fill);return}catch(e){_useWA=false}}
+  _playHTML(k,dur,fill);
+}
 const _last={};
 function thr(name,ms,fn){const t=Date.now();if((_last[name]||0)+ms<t){_last[name]=t;fn()}}
 const SFX={
