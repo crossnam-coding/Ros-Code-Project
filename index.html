@@ -139,16 +139,20 @@ function syncMuteIcon(){if(muteIcon)muteIcon.textContent=muted?'🔇':'🔊';if(
 function toggleMute(){muted=!muted;syncMuteIcon();flash(muted?'🔇 MUTE':'🔊 SOUND','#fff')}
 syncMuteIcon();
 if(muteIcon)muteIcon.addEventListener('click',e=>{e.stopPropagation();audioInit();audioResume();toggleMute();if(!muted)setTimeout(()=>SFX.pickup(),50)});
+// Allow opting back into Web Audio via ?audio=wa for users where it works.
+const _audioModePref=(typeof location!=='undefined'&&/[?&]audio=wa\b/.test(location.search))?'wa':'html';
 function audioInit(){
   if(audioInit._inited)return;audioInit._inited=true;
-  try{
-    actx=new (window.AudioContext||window.webkitAudioContext)();
-    masterGain=actx.createGain();masterGain.gain.value=0.6;
-    masterGain.connect(actx.destination);
-    if(actx.state==='suspended')actx.resume().catch(()=>{});
-    _useWA=true;
-  }catch(e){actx=null;_useWA=false}
-  // Always unlock HTML5 Audio path so it can serve as fallback
+  if(_audioModePref==='wa'){
+    try{
+      actx=new (window.AudioContext||window.webkitAudioContext)();
+      masterGain=actx.createGain();masterGain.gain.value=0.6;
+      masterGain.connect(actx.destination);
+      if(actx.state==='suspended')actx.resume().catch(()=>{});
+      _useWA=true;
+    }catch(e){actx=null;_useWA=false}
+  }
+  // Always unlock HTML5 Audio path (silent sample inside the user gesture)
   try{const a=new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');a.volume=0;const p=a.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}
 }
 function audioResume(){if(actx&&actx.state==='suspended')actx.resume().catch(()=>{})}
