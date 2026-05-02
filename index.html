@@ -91,6 +91,7 @@ tr.me td{color:#ff6;font-weight:bold}
 <button id="startBtn">게임 시작</button>
 <button id="shopBtn" style="background:#fc6">🛒 상점</button>
 <button id="testSoundBtn" style="background:#9cf">🔊 소리 테스트</button>
+<button id="audioModeBtn" style="background:#cf9">🎚️ 오디오 모드</button>
 <button id="continueBtn" class="hidden" style="background:#f9f">부활 (30🪙)</button>
 <button id="skipBtn" class="hidden" style="background:#789">포기</button>
 </div>
@@ -139,11 +140,13 @@ function syncMuteIcon(){if(muteIcon)muteIcon.textContent=muted?'🔇':'🔊';if(
 function toggleMute(){muted=!muted;syncMuteIcon();flash(muted?'🔇 MUTE':'🔊 SOUND','#fff')}
 syncMuteIcon();
 if(muteIcon)muteIcon.addEventListener('click',e=>{e.stopPropagation();audioInit();audioResume();toggleMute();if(!muted)setTimeout(()=>SFX.pickup(),50)});
-// Allow opting back into Web Audio via ?audio=wa for users where it works.
-const _audioModePref=(typeof location!=='undefined'&&/[?&]audio=wa\b/.test(location.search))?'wa':'html';
+// User-selectable audio mode (persisted). 'wa' is fast, 'html' is reliable.
+const AUDIO_MODE_KEY='ssAudioMode';
+let _audioMode=(()=>{try{return localStorage.getItem(AUDIO_MODE_KEY)||'wa'}catch(e){return 'wa'}})();
+function setAudioMode(m){_audioMode=m;try{localStorage.setItem(AUDIO_MODE_KEY,m)}catch(e){}}
 function audioInit(){
   if(audioInit._inited)return;audioInit._inited=true;
-  if(_audioModePref==='wa'){
+  if(_audioMode==='wa'){
     try{
       actx=new (window.AudioContext||window.webkitAudioContext)();
       masterGain=actx.createGain();masterGain.gain.value=0.6;
@@ -1045,7 +1048,13 @@ $('testSoundBtn').addEventListener('click',()=>{
   audioInit();
   if(muted){muted=false;syncMuteIcon()}
   SFX.pickup();
-  flash('소리 테스트','#9cf');
+  flash('소리 테스트 ('+_audioMode.toUpperCase()+')','#9cf');
+});
+$('audioModeBtn').addEventListener('click',()=>{
+  const next=_audioMode==='wa'?'html':'wa';
+  setAudioMode(next);
+  bigFlash('🎚️ 오디오: '+(next==='wa'?'Web Audio (빠름)':'HTML5 (안정)')+'<br><span style="font-size:14px;opacity:.8">새로고침 후 적용</span>','#cf9');
+  setTimeout(()=>location.reload(),1200);
 });
 shopBtn.addEventListener('click',()=>{
   audioInit();audioResume();
