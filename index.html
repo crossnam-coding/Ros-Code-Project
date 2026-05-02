@@ -148,9 +148,8 @@ function _wavURI(samples,sr){
   dv.setUint32(24,sr,true);dv.setUint32(28,sr*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);
   dv.setUint32(36,0x64617461);dv.setUint32(40,len*2,true);
   for(let i=0;i<len;i++)dv.setInt16(44+i*2,Math.max(-1,Math.min(1,samples[i]))*32767,true);
-  let bin='',u=new Uint8Array(buf);
-  for(let i=0;i<u.length;i++)bin+=String.fromCharCode(u[i]);
-  return 'data:audio/wav;base64,'+btoa(bin);
+  // Blob URL is far cheaper than base64 data URI for Safari to load/decode
+  return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
 }
 function _genTone(freq,dur,type,vol,slide){
   const key='t|'+freq+'|'+dur+'|'+type+'|'+vol+'|'+slide;
@@ -188,7 +187,7 @@ function _genNoise(dur,vol,freq){
 // (avoids the costly currentTime=0 + play() restart on every shot).
 function _play(uri){
   let a=_audioCache[uri];
-  if(!a){a=new Audio(uri);a.volume=1.0;_audioCache[uri]=a}
+  if(!a){a=new Audio();a.preload='auto';a.src=uri;a.volume=1.0;_audioCache[uri]=a;try{a.load()}catch(e){}}
   if(!a.paused&&!a.ended)return;
   if(a.currentTime>0)a.currentTime=0;
   const p=a.play();if(p&&p.catch)p.catch(_noop);
@@ -503,9 +502,9 @@ function updateDrones(){
   }
 }
 function drawDrones(){for(const d of drones){ctx.fillStyle='#fc6';ctx.beginPath();ctx.arc(d.x,d.y,7,0,Math.PI*2);ctx.fill();ctx.fillStyle='#420';ctx.fillRect(d.x-2,d.y-2,4,4)}}
-function explode(x,y,color,n=14){
-  if(parts.length>120)parts.splice(0,parts.length-120);
-  const cap=Math.min(n,Math.max(4,140-parts.length));
+function explode(x,y,color,n=10){
+  if(parts.length>80)parts.splice(0,parts.length-80);
+  const cap=Math.min(n,Math.max(3,90-parts.length));
   for(let i=0;i<cap;i++){const a=Math.random()*Math.PI*2,sp=Math.random()*3+1;parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:30+Math.random()*20,color})}
 }
 function rect(a,b){return a.x-a.w/2<b.x+b.w/2&&a.x+a.w/2>b.x-b.w/2&&a.y-a.h/2<b.y+b.h/2&&a.y+a.h/2>b.y-b.h/2}
@@ -657,7 +656,7 @@ function update(){
 
 function killEnemy(i){
   const e=enemies[i];
-  explode(e.x,e.y,e.gold?'#fd0':'#f84',e.gold?32:18);SFX.explode();
+  explode(e.x,e.y,e.gold?'#fd0':'#f84',e.gold?20:12);SFX.explode();
   addCombo();
   const baseScore=e.t.score*(e.gold?5:1);
   const upgMul=1+(upgLv('multi')||0)*.1;
