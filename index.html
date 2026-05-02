@@ -128,21 +128,19 @@ window.addEventListener('keydown',e=>{
   }
 });
 
-// ===== AUDIO =====
+// ===== AUDIO (HTML5 Audio) =====
 let actx=null,masterGain=null,muted=false;
 const muteIcon=document.getElementById('muteIcon');
 function syncMuteIcon(){if(muteIcon)muteIcon.textContent=muted?'🔇':'🔊';if(muteIcon)muteIcon.style.opacity=muted?'.4':'1'}
 function toggleMute(){muted=!muted;syncMuteIcon();flash(muted?'🔇 MUTE':'🔊 SOUND','#fff')}
 syncMuteIcon();
-if(muteIcon)muteIcon.addEventListener('click',e=>{e.stopPropagation();audioInit();audioResume();toggleMute();if(!muted)setTimeout(()=>SFX.pickup(),50)});
-// HTML5 Audio synthesis (Safari-compatible — Web Audio synth is unreliable there)
+if(muteIcon)muteIcon.addEventListener('click',e=>{e.stopPropagation();audioInit();toggleMute();if(!muted)setTimeout(()=>SFX.pickup(),50)});
 function audioInit(){
-  // Unlock HTML5 Audio with a silent sample inside the user gesture
   if(audioInit._unlocked)return;audioInit._unlocked=true;
   try{const a=new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');a.volume=0;const p=a.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}
 }
 function audioResume(){}
-const _wavCache={},_audioPool={},_POOL=4;
+const _wavCache={},_audioCache={},_noop=()=>{};
 function _wavURI(samples,sr){
   const len=samples.length,buf=new ArrayBuffer(44+len*2),dv=new DataView(buf);
   dv.setUint32(0,0x52494646);dv.setUint32(4,36+len*2,true);dv.setUint32(8,0x57415645);
@@ -166,7 +164,7 @@ function _genTone(freq,dur,type,vol,slide){
     if(type==='sine')v=Math.sin(phase);
     else if(type==='triangle')v=(2/Math.PI)*Math.asin(Math.sin(phase));
     else if(type==='sawtooth')v=((phase/(2*Math.PI))%1)*2-1;
-    else v=Math.sin(phase)>0?1:-1; // square / default
+    else v=Math.sin(phase)>0?1:-1;
     const att=Math.min(1,i/Math.max(1,0.005*sr));
     const decay=Math.pow(0.0001,tt/dur);
     s[i]=v*vol*att*decay*0.7;
@@ -186,16 +184,14 @@ function _genNoise(dur,vol,freq){
   }
   return _wavCache[key]=_wavURI(s,sr);
 }
+// One Audio per unique sound. If it's still playing, drop the trigger
+// (avoids the costly currentTime=0 + play() restart on every shot).
 function _play(uri){
-  let pool=_audioPool[uri];
-  if(!pool){
-    pool={items:[],idx:0};
-    for(let i=0;i<_POOL;i++){const a=new Audio(uri);a.volume=1.0;pool.items.push(a)}
-    _audioPool[uri]=pool;
-  }
-  const a=pool.items[pool.idx];pool.idx=(pool.idx+1)%_POOL;
-  try{a.currentTime=0}catch(e){}
-  const p=a.play();if(p&&p.catch)p.catch(()=>{});
+  let a=_audioCache[uri];
+  if(!a){a=new Audio(uri);a.volume=1.0;_audioCache[uri]=a}
+  if(!a.paused&&!a.ended)return;
+  if(a.currentTime>0)a.currentTime=0;
+  const p=a.play();if(p&&p.catch)p.catch(_noop);
 }
 function tone(freq,dur,type='square',vol=1,slide=0){if(muted)return;_play(_genTone(freq,dur,type,vol,slide))}
 function noise(dur,vol=1,freq=1000){if(muted)return;_play(_genNoise(dur,vol,freq))}
