@@ -435,12 +435,22 @@ const ETYPES={
   shooter:{w:36,h:36,hp:2,score:30,color:'#f48',vy:1.0,drop:.08,shoots:true},
   zigzag:{w:28,h:28,hp:1,score:25,color:'#6cf',vy:1.8,drop:.06,zig:true},
   tank:{w:50,h:46,hp:6,score:80,color:'#aaa',vy:.6,drop:.2},
-  spinner:{w:40,h:40,hp:3,score:50,color:'#c6f',vy:.9,drop:.12,spin:true}
+  spinner:{w:40,h:40,hp:3,score:50,color:'#c6f',vy:.9,drop:.12,spin:true},
+  // Stage 4+: armored heavy that fires a 3-way spread
+  heavy:{w:54,h:50,hp:10,score:140,color:'#fa3',vy:.5,drop:.25,heavy:true},
+  // Stage 5+: aimed-shot sniper, hangs near top
+  sniper:{w:34,h:30,hp:3,score:90,color:'#f3f',vy:.55,drop:.15,sniper:true},
+  // Stage 6+: kamikaze diver, low HP but fast and tracks player
+  diver:{w:30,h:34,hp:2,score:60,color:'#fc3',vy:1.6,drop:.10,diver:true}
 };
 function spawnEnemy(){
   const r=Math.random(),lv=S.level,stage=getStage();
   let type='basic';
-  if(r<.04+lv*.008)type='tank';
+  // Late-stage elites: roll first, else fall through to base mix
+  if(stage>=6&&Math.random()<.10)type='diver';
+  else if(stage>=5&&Math.random()<.10)type='sniper';
+  else if(stage>=4&&Math.random()<.10)type='heavy';
+  else if(r<.04+lv*.008)type='tank';
   else if(r<.15+lv*.012)type='spinner';
   else if(r<.30+lv*.015)type='zigzag';
   else if(r<.50+lv*.015)type='shooter';
@@ -569,7 +579,7 @@ function update(){
   // spawn (no regular enemies during boss)
   if(!S.boss){
     S.spawnTimer++;
-    if(S.spawnTimer>=S.spawnInt){S.spawnTimer=0;const st=getStage();const wave=st<=1?1:st===2?2:st<=4?3:st<=6?4:5;for(let w=0;w<wave;w++)spawnEnemy()}
+    if(S.spawnTimer>=S.spawnInt){S.spawnTimer=0;const st=getStage();const wave=st<=1?1:st===2?2:st===3?3:st===4?4:st===5?5:st===6?6:7;for(let w=0;w<wave;w++)spawnEnemy()}
     // boss every 5 levels
     if(S.level>=S.nextBossLevel)spawnBoss();
   }
@@ -595,6 +605,9 @@ function update(){
     if(e.x<e.w/2||e.x>W-e.w/2)e.vx*=-1;
     if(e.t.shoots){e.shootTimer--;if(e.shootTimer<=0&&e.y>0&&e.y<H*.6){ebullets.push({x:e.x,y:e.y+12,vx:0,vy:5+e.stage*.55,w:5,h:10});e.shootTimer=Math.max(28,75-e.stage*7)+Math.random()*45}}
     if(e.t.spin){e.shootTimer--;if(e.shootTimer<=0&&e.y>20&&e.y<H*.5){const sp=3+e.stage*.35;for(let k=0;k<6;k++){const a=e.phase+k*Math.PI/3;ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp+1,w:4,h:8})}e.shootTimer=Math.max(50,110-e.stage*7)+Math.random()*45}}
+    if(e.t.heavy){e.shootTimer--;if(e.shootTimer<=0&&e.y>10&&e.y<H*.55){const sp=4+e.stage*.4;for(let k=-1;k<=1;k++)ebullets.push({x:e.x+k*8,y:e.y+18,vx:k*1.6,vy:sp,w:5,h:11});e.shootTimer=Math.max(40,90-e.stage*6)+Math.random()*30}}
+    if(e.t.sniper){if(e.y>110)e.vy=Math.min(e.vy,.15);e.shootTimer--;if(e.shootTimer<=0&&e.y>30){const dx=P.x-e.x,dy=P.y-e.y,d=Math.hypot(dx,dy)||1,sp=4.5+e.stage*.45;ebullets.push({x:e.x,y:e.y+10,vx:dx/d*sp,vy:dy/d*sp,w:5,h:9});e.shootTimer=Math.max(35,85-e.stage*7)+Math.random()*30}}
+    if(e.t.diver){const dx=P.x-e.x;e.x+=Math.sign(dx)*Math.min(Math.abs(dx)*.04,2.4);e.vy=Math.min(e.vy+.02,3+e.stage*.15)}
     if(e.y>H+30){enemies.splice(i,1);continue}
 
     for(let j=bullets.length-1;j>=0;j--){
@@ -705,7 +718,7 @@ function killEnemy(i){
   popup(e.x,e.y,'+'+earned,e.gold?'#fd0':S.combo>=8?'#ff6':'#fff');
   // gauge gain (with shop upgrade + permanent in-run multiplier)
   const gMul=(1+(upgLv('gauge')||0)*.25)*(P.gaugeMul||1);
-  P.gauge=Math.min(100,P.gauge+(e.type==='tank'?4:e.type==='spinner'?2.5:1.2)*gMul);
+  P.gauge=Math.min(100,P.gauge+(e.type==='heavy'?5:e.type==='tank'?4:e.type==='spinner'?2.5:e.type==='sniper'?2:1.2)*gMul);
   // coins (1 per 8 score)
   const coinGain=Math.max(1,Math.floor(earned/8))*S.coinMul;
   S.sessionCoins+=coinGain;
@@ -717,7 +730,7 @@ function killEnemy(i){
   const oldLv=S.level;
   const newLv=scoreToLevel(S.score);
   if(newLv>oldLv){
-    S.level=newLv;S.spawnInt=Math.max(18,55-S.level*2);
+    S.level=newLv;S.spawnInt=Math.max(10,55-S.level*2);
     flash('LEVEL '+S.level+' UP!','#ff6');SFX.levelup();
     S.score+=30*(newLv-oldLv);
     S.scoreMul*=Math.pow(1.015,newLv-oldLv);
@@ -770,6 +783,9 @@ function drawEnemy(e){
   else if(e.type==='zigzag'){ctx.beginPath();ctx.moveTo(e.x,e.y-e.h/2);ctx.lineTo(e.x+e.w/2,e.y);ctx.lineTo(e.x,e.y+e.h/2);ctx.lineTo(e.x-e.w/2,e.y);ctx.closePath();ctx.fill();ctx.fillStyle='#036';ctx.fillRect(e.x-3,e.y-3,6,6)}
   else if(e.type==='tank'){ctx.fillRect(e.x-e.w/2,e.y-e.h/2,e.w,e.h);ctx.fillStyle='#666';ctx.fillRect(e.x-e.w/2+4,e.y-e.h/2+4,e.w-8,e.h-8);ctx.fillStyle='#f33';ctx.fillRect(e.x-6,e.y-4,12,8)}
   else if(e.type==='spinner'){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.phase);ctx.beginPath();for(let k=0;k<6;k++){const a=k*Math.PI/3;ctx.lineTo(Math.cos(a)*e.w/2,Math.sin(a)*e.w/2)}ctx.closePath();ctx.fill();ctx.fillStyle='#306';ctx.fillRect(-4,-4,8,8);ctx.restore()}
+  else if(e.type==='heavy'){ctx.fillRect(e.x-e.w/2,e.y-e.h/2,e.w,e.h);ctx.fillStyle='#852';ctx.fillRect(e.x-e.w/2+5,e.y-e.h/2+5,e.w-10,e.h-10);ctx.fillStyle='#ff6';ctx.fillRect(e.x-10,e.y-3,20,6);ctx.fillStyle='#fa3';ctx.fillRect(e.x-2,e.y+e.h/2-4,4,8)}
+  else if(e.type==='sniper'){ctx.beginPath();ctx.moveTo(e.x,e.y-e.h/2);ctx.lineTo(e.x+e.w/2,e.y+e.h/2);ctx.lineTo(e.x-e.w/2,e.y+e.h/2);ctx.closePath();ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(e.x,e.y,3,0,Math.PI*2);ctx.fill();ctx.fillStyle='#f0f';ctx.fillRect(e.x-1,e.y-2,2,4)}
+  else if(e.type==='diver'){ctx.beginPath();ctx.moveTo(e.x,e.y+e.h/2);ctx.lineTo(e.x+e.w/2,e.y-e.h/4);ctx.lineTo(e.x,e.y-e.h/2);ctx.lineTo(e.x-e.w/2,e.y-e.h/4);ctx.closePath();ctx.fill();ctx.fillStyle='#630';ctx.fillRect(e.x-3,e.y-2,6,4)}
   else{ctx.beginPath();ctx.moveTo(e.x,e.y+e.h/2);ctx.lineTo(e.x+e.w/2,e.y);ctx.lineTo(e.x,e.y-e.h/2);ctx.lineTo(e.x-e.w/2,e.y);ctx.closePath();ctx.fill();ctx.fillStyle='#063';ctx.fillRect(e.x-4,e.y-2,8,4)}
   ctx.shadowBlur=0;
   // hp bar for tougher
