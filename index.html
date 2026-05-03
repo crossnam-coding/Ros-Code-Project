@@ -142,7 +142,7 @@ syncMuteIcon();
 if(muteIcon)muteIcon.addEventListener('click',e=>{e.stopPropagation();audioInit();audioResume();toggleMute();if(!muted)setTimeout(()=>SFX.pickup(),50)});
 // User-selectable audio mode (persisted). 'wa' is fast, 'html' is reliable.
 const AUDIO_MODE_KEY='ssAudioMode';
-let _audioMode=(()=>{try{return localStorage.getItem(AUDIO_MODE_KEY)||'wa'}catch(e){return 'wa'}})();
+let _audioMode=(()=>{try{return localStorage.getItem(AUDIO_MODE_KEY)||'html'}catch(e){return 'html'}})();
 function setAudioMode(m){_audioMode=m;try{localStorage.setItem(AUDIO_MODE_KEY,m)}catch(e){}}
 function audioInit(){
   if(audioInit._inited)return;audioInit._inited=true;
@@ -944,7 +944,22 @@ function render(){
   ctx.globalAlpha=1;ctx.textAlign='start';
   if(S.screenShake>0)ctx.restore();
 }
-function loop(){update();render();requestAnimationFrame(loop)}
+// Fixed 60Hz update step so high-refresh-rate monitors (120/144/240Hz) don't
+// run the simulation faster. Render still runs at the display's native rate.
+let _loopLast=0,_loopAcc=0;const _LOOP_DT=1000/60;
+function loop(now){
+  if(!now)now=performance.now();
+  if(!_loopLast)_loopLast=now;
+  let d=now-_loopLast;_loopLast=now;
+  if(d>250)d=250;
+  _loopAcc+=d;
+  // Cap catch-up to a few steps so a long pause doesn't burst-execute
+  let steps=0;
+  while(_loopAcc>=_LOOP_DT&&steps<5){update();_loopAcc-=_LOOP_DT;steps++}
+  if(_loopAcc>_LOOP_DT*5)_loopAcc=0;
+  render();
+  requestAnimationFrame(loop);
+}
 
 // RANKING
 function getScores(){try{return JSON.parse(localStorage.getItem(RANK_KEY)||'[]')}catch{return[]}}
