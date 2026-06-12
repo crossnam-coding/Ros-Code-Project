@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import math
+
 from dataclasses import dataclass, field
 
 from pedalboard import (
@@ -50,7 +52,8 @@ class RoleProfile:
     target_lufs_offset: float = -6.0        # 보컬(0.0) 기준 상대 라우드니스
     pan: float = 0.0                        # -1(L) ~ +1(R), 같은 군이 여러 개면 좌우로 벌림
     pan_spread: float = 0.0                 # 같은 군 2개 이상일 때 벌리는 폭
-    reverb_send: float = 0.0                # 0~1, 공용 리버브 버스로 보내는 양
+    reverb_send: float = 0.0                # 0~1, 리버브 버스로 보내는 양
+    space: str = "close"                    # 리버브 공간: close(가까운 플레이트) / far(먼 홀)
 
 
 # 악기별 표준 레시피. 수치는 일반적인 믹싱 가이드 기준의 보수적인 출발점.
@@ -133,7 +136,7 @@ PROFILES: dict[str, RoleProfile] = {
         eq_moves=[EQMove(400, -2.0, 0.9)],
         high_shelf=EQMove(8000, 1.0),
         comp_threshold_db=-20, comp_ratio=1.8, comp_attack_ms=30, comp_release_ms=250,
-        target_lufs_offset=-11.0, pan=0.0, pan_spread=0.8, reverb_send=0.30,
+        target_lufs_offset=-11.0, pan=0.0, pan_spread=0.8, reverb_send=0.30, space="far",
     ),
     "strings": RoleProfile(
         label="스트링",
@@ -141,7 +144,7 @@ PROFILES: dict[str, RoleProfile] = {
         eq_moves=[EQMove(350, -1.5, 1.0)],
         high_shelf=EQMove(9000, 1.0),
         comp_threshold_db=-20, comp_ratio=2.0, comp_attack_ms=25, comp_release_ms=200,
-        target_lufs_offset=-8.0, pan=0.0, pan_spread=0.7, reverb_send=0.25,
+        target_lufs_offset=-8.0, pan=0.0, pan_spread=0.7, reverb_send=0.25, space="far",
     ),
     "brass": RoleProfile(
         label="브라스",
@@ -163,13 +166,43 @@ PROFILES: dict[str, RoleProfile] = {
         highpass_hz=120,
         eq_moves=[EQMove(250, -2.5, 1.1), EQMove(3000, 1.0, 0.9)],
         comp_threshold_db=-18, comp_ratio=3.5, comp_attack_ms=8, comp_release_ms=120,
-        target_lufs_offset=-7.0, pan=0.45, pan_spread=0.9, reverb_send=0.28,
+        target_lufs_offset=-7.0, pan=0.45, pan_spread=0.9, reverb_send=0.28, space="far",
+    ),
+    "vocal_double": RoleProfile(
+        label="보컬 더블",
+        highpass_hz=120,
+        eq_moves=[EQMove(250, -2.5, 1.1)],
+        high_shelf=EQMove(8000, -1.5),  # 리드보다 어둡게 → 리드 뒤에 붙음
+        comp_threshold_db=-17, comp_ratio=4.0, comp_attack_ms=5, comp_release_ms=100,
+        target_lufs_offset=-8.0, pan=0.0, pan_spread=1.2, reverb_send=0.15,
+    ),
+    "vocal_harmony": RoleProfile(
+        label="하모니/스택",
+        highpass_hz=150,
+        eq_moves=[EQMove(250, -3.0, 1.1), EQMove(3000, -1.0, 0.9)],  # 리드 자리 비움
+        comp_threshold_db=-17, comp_ratio=4.0, comp_attack_ms=8, comp_release_ms=130,
+        target_lufs_offset=-9.0, pan=0.0, pan_spread=1.4, reverb_send=0.30, space="far",
+    ),
+    "vocal_adlib": RoleProfile(
+        label="애드립",
+        highpass_hz=130,
+        eq_moves=[EQMove(250, -2.0, 1.1), EQMove(3000, 1.5, 0.9)],
+        high_shelf=EQMove(10000, 1.0),
+        comp_threshold_db=-17, comp_ratio=3.0, comp_attack_ms=8, comp_release_ms=120,
+        target_lufs_offset=-6.0, pan=0.35, pan_spread=1.0, reverb_send=0.35,
+    ),
+    "vocal_chant": RoleProfile(
+        label="코러스(떼창)",
+        highpass_hz=180,
+        eq_moves=[EQMove(300, -2.0, 1.0)],
+        comp_threshold_db=-18, comp_ratio=5.0, comp_attack_ms=10, comp_release_ms=150,
+        target_lufs_offset=-10.0, pan=0.0, pan_spread=1.6, reverb_send=0.35, space="far",
     ),
     "fx": RoleProfile(
         label="이펙트",
         highpass_hz=150,
         comp_threshold_db=-20, comp_ratio=2.0, comp_attack_ms=10, comp_release_ms=150,
-        target_lufs_offset=-12.0, pan=0.0, pan_spread=1.0, reverb_send=0.25,
+        target_lufs_offset=-12.0, pan=0.0, pan_spread=1.0, reverb_send=0.25, space="far",
     ),
     "other": RoleProfile(
         label="기타악기(미분류)",
@@ -221,3 +254,85 @@ def describe_chain(profile: RoleProfile) -> str:
         f"(thr {profile.comp_threshold_db:.0f}dB, atk {profile.comp_attack_ms:.0f}ms, rel {profile.comp_release_ms:.0f}ms)"
     )
     return " → ".join(parts)
+
+
+# ──────────────────────── 그룹 버스 ────────────────────────
+# 실제 세션 워크플로우: 트랙 → 그룹 버스(글루/캐릭터) → 믹스 버스.
+# duck_by_lead: 리드 보컬이 나올 때 이 버스를 눌러주는 깊이 (0이면 안 누름)
+
+
+@dataclass
+class BusProfile:
+    label: str
+    roles: tuple[str, ...]
+    comp: tuple[float, float, float, float] | None = None  # (thr_db, ratio, atk_ms, rel_ms)
+    eq_moves: list[EQMove] = field(default_factory=list)
+    high_shelf: EQMove | None = None
+    duck_by_lead: float = 0.0
+
+
+# 처리 순서 중요: vocal_lead가 가장 먼저(덕킹 트리거), drums가 bass보다 먼저(킥 트리거)
+BUSES: dict[str, BusProfile] = {
+    "vocal_lead": BusProfile(
+        label="리드 보컬 버스", roles=("vocal",),
+        comp=(-16, 2.0, 15, 150), high_shelf=EQMove(12000, 1.0),
+    ),
+    "drums": BusProfile(
+        label="드럼 버스", roles=("kick", "snare", "hihat", "drums", "percussion"),
+        comp=(-12, 2.0, 30, 180),
+    ),
+    "bass_bus": BusProfile(
+        label="베이스 버스", roles=("bass",),
+    ),
+    "vocal_double": BusProfile(
+        label="더블 버스", roles=("vocal_double",),
+        comp=(-17, 3.0, 10, 120), high_shelf=EQMove(8000, -1.0), duck_by_lead=0.15,
+    ),
+    "vocal_harmony": BusProfile(
+        label="하모니 버스", roles=("vocal_harmony", "backing_vocal"),
+        comp=(-17, 3.0, 10, 150), eq_moves=[EQMove(3000, -1.0, 0.9)], duck_by_lead=0.20,
+    ),
+    "vocal_adlib": BusProfile(
+        label="애드립 버스", roles=("vocal_adlib",),
+        comp=(-18, 2.5, 10, 140), duck_by_lead=0.25,
+    ),
+    "vocal_chant": BusProfile(
+        label="떼창 버스", roles=("vocal_chant",),
+        comp=(-18, 4.0, 15, 180), eq_moves=[EQMove(300, -1.5, 1.0)], duck_by_lead=0.20,
+    ),
+    "music": BusProfile(
+        label="뮤직 버스", roles=("guitar", "piano", "keys", "synth", "pad", "strings", "brass", "fx", "other"),
+        comp=(-15, 1.5, 30, 250),
+    ),
+}
+
+ROLE_TO_BUS: dict[str, str] = {
+    role: name for name, bus in BUSES.items() for role in bus.roles
+}
+
+
+def build_bus_chain(bus: BusProfile) -> Pedalboard | None:
+    plugins = []
+    for move in bus.eq_moves:
+        plugins.append(PeakFilter(cutoff_frequency_hz=move.freq, gain_db=move.gain_db, q=move.q))
+    if bus.high_shelf:
+        plugins.append(
+            HighShelfFilter(cutoff_frequency_hz=bus.high_shelf.freq, gain_db=bus.high_shelf.gain_db)
+        )
+    if bus.comp:
+        thr, ratio, atk, rel = bus.comp
+        plugins.append(Compressor(threshold_db=thr, ratio=ratio, attack_ms=atk, release_ms=rel))
+    return Pedalboard(plugins) if plugins else None
+
+
+def describe_bus(bus: BusProfile) -> str:
+    parts = [f"EQ {m.describe()}" for m in bus.eq_moves]
+    if bus.high_shelf:
+        parts.append(f"HighShelf {bus.high_shelf.describe()}")
+    if bus.comp:
+        thr, ratio, atk, rel = bus.comp
+        parts.append(f"글루 컴프 {ratio:.1f}:1 (thr {thr:.0f}dB, atk {atk:.0f}ms, rel {rel:.0f}ms)")
+    if bus.duck_by_lead > 0:
+        duck_db = 20 * math.log10(1 - bus.duck_by_lead)
+        parts.append(f"리드 보컬 덕킹 최대 {duck_db:.1f}dB")
+    return " → ".join(parts) if parts else "(패스스루)"

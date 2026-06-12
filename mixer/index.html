@@ -53,10 +53,11 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>🎚️ automix<span class="badge">프로토타입 v0.4</span></h1>
+  <h1>🎚️ automix<span class="badge">프로토타입 v0.5</span></h1>
   <p class="sub">
     멀티트랙(스템)을 끌어다 놓으면 브라우저 안에서 자동으로 믹스합니다 — 업로드 없음, 전부 내 컴퓨터에서 처리.<br>
-    악기별 정석 EQ/컴프 체인 · LUFS 자동 밸런스 · 자동 패닝 · 리버브 공간감 · 킥→베이스 덕킹 · 보컬 디에서 · 마스킹 카빙
+    그룹 버스 라우팅(리드/더블/하모니/애드립/떼창/드럼/뮤직) · 리드 우선 덕킹 · 원근 리버브 2공간 ·
+    악기별 정석 EQ/컴프 · LUFS 밸런스 · 디에서 · 마스킹 카빙
   </p>
 
   <div id="drop">
@@ -117,19 +118,40 @@ const PROFILES = {
   pad:           {label:"패드",          hpf:150, eq:[[400,-2,0.9]],                                hs:[8000,1],    comp:[-20,1.8,30,250],offset:-11, pan:0,    spread:0.8, send:0.30},
   strings:       {label:"스트링",        hpf:120, eq:[[350,-1.5,1]],                                hs:[9000,1],    comp:[-20,2,25,200],  offset:-8,  pan:0,    spread:0.7, send:0.25},
   brass:         {label:"브라스",        hpf:100, eq:[[300,-1.5,1],[2000,1,0.9]],                   hs:null,        comp:[-17,3,15,130],  offset:-7,  pan:0.3,  spread:0.6, send:0.15},
-  vocal:         {label:"보컬",          hpf:90,  eq:[[250,-2,1.1],[3000,2,0.9]],                   hs:[10000,1.5], comp:[-16,3,8,120],   offset:0,   pan:0,    spread:0,   send:0.20},
-  backing_vocal: {label:"백보컬",        hpf:120, eq:[[250,-2.5,1.1],[3000,1,0.9]],                 hs:null,        comp:[-18,3.5,8,120], offset:-7,  pan:0.45, spread:0.9, send:0.28},
-  fx:            {label:"이펙트",        hpf:150, eq:[],                                            hs:null,        comp:[-20,2,10,150],  offset:-12, pan:0,    spread:1.0, send:0.25},
+  vocal:         {label:"리드 보컬",     hpf:90,  eq:[[250,-2,1.1],[3000,2,0.9]],                   hs:[10000,1.5], comp:[-16,3,8,120],   offset:0,   pan:0,    spread:0,   send:0.20},
+  backing_vocal: {label:"백보컬",        hpf:120, eq:[[250,-2.5,1.1],[3000,1,0.9]],                 hs:null,        comp:[-18,3.5,8,120], offset:-7,  pan:0.45, spread:0.9, send:0.28, space:"far"},
+  vocal_double:  {label:"보컬 더블",     hpf:120, eq:[[250,-2.5,1.1]],                              hs:[8000,-1.5], comp:[-17,4,5,100],   offset:-8,  pan:0,    spread:1.2, send:0.15},
+  vocal_harmony: {label:"하모니/스택",   hpf:150, eq:[[250,-3,1.1],[3000,-1,0.9]],                  hs:null,        comp:[-17,4,8,130],   offset:-9,  pan:0,    spread:1.4, send:0.30, space:"far"},
+  vocal_adlib:   {label:"애드립",        hpf:130, eq:[[250,-2,1.1],[3000,1.5,0.9]],                 hs:[10000,1],   comp:[-17,3,8,120],   offset:-6,  pan:0.35, spread:1.0, send:0.35},
+  vocal_chant:   {label:"코러스(떼창)",  hpf:180, eq:[[300,-2,1]],                                  hs:null,        comp:[-18,5,10,150],  offset:-10, pan:0,    spread:1.6, send:0.35, space:"far"},
+  fx:            {label:"이펙트",        hpf:150, eq:[],                                            hs:null,        comp:[-20,2,10,150],  offset:-12, pan:0,    spread:1.0, send:0.25, space:"far"},
   other:         {label:"기타악기",      hpf:80,  eq:[[300,-1.5,1]],                                hs:null,        comp:[-18,2.5,12,130],offset:-7,  pan:0.2,  spread:0.6, send:0.12},
 };
 const PRE_CHAIN_LUFS = -20, BALANCE_REF_LUFS = -18;
 const VOCAL_CARVE_ROLES = new Set(["guitar","piano","keys","synth","pad","strings","brass"]);
 const VOCAL_DUCK_ROLES = new Set(["pad","strings"]);
+const DEESS_ROLES = new Set(["vocal","backing_vocal","vocal_double","vocal_harmony","vocal_adlib","vocal_chant"]);
+
+/* ── 그룹 버스: 트랙 → 그룹 버스(글루/캐릭터) → 믹스 버스. 순서 중요:
+   리드가 먼저(덕킹 트리거), 드럼이 베이스보다 먼저(킥 트리거).
+   duck: 리드 보컬이 나올 때 이 버스를 눌러주는 깊이 */
+const BUSES = {
+  vocal_lead:    {label:"리드 보컬 버스", roles:["vocal"],                                    comp:[-16,2,15,150],  hs:[12000,1],  eq:[],            duck:0},
+  drums:         {label:"드럼 버스",      roles:["kick","snare","hihat","drums","percussion"],comp:[-12,2,30,180],  hs:null,       eq:[],            duck:0},
+  bass_bus:      {label:"베이스 버스",    roles:["bass"],                                     comp:null,            hs:null,       eq:[],            duck:0},
+  vocal_double:  {label:"더블 버스",      roles:["vocal_double"],                             comp:[-17,3,10,120],  hs:[8000,-1],  eq:[],            duck:0.15},
+  vocal_harmony: {label:"하모니 버스",    roles:["vocal_harmony","backing_vocal"],            comp:[-17,3,10,150],  hs:null,       eq:[[3000,-1,0.9]],duck:0.20},
+  vocal_adlib:   {label:"애드립 버스",    roles:["vocal_adlib"],                              comp:[-18,2.5,10,140],hs:null,       eq:[],            duck:0.25},
+  vocal_chant:   {label:"떼창 버스",      roles:["vocal_chant"],                              comp:[-18,4,15,180],  hs:null,       eq:[[300,-1.5,1]],duck:0.20},
+  music:         {label:"뮤직 버스",      roles:["guitar","piano","keys","synth","pad","strings","brass","fx","other"], comp:[-15,1.5,30,250], hs:null, eq:[], duck:0},
+};
+const ROLE_TO_BUS = {};
+for (const [name, b] of Object.entries(BUSES)) for (const r of b.roles) ROLE_TO_BUS[r] = name;
 
 /* 파일명 키워드 분류 (구체적인 것 먼저) */
 const NAME_RULES = [
   [/back(ing)?[ _-]?vo|bgv|chorus[ _-]?vo|harmony|코러스|백보컬/i, "backing_vocal"],
-  [/vo(x|cal|ice)\b|vocal|lead[ _-]?vo|acapella|보컬|목소리|노래/i, "vocal"],
+  [/vo(x|cal|ice)\b|vocal|lead[ _-]?vo|main[ _-]?vo|acapella|(?<![a-z0-9])v\d+(?![0-9])|보컬|메인|목소리|노래/i, "vocal"],
   [/kick|\bbd\b|bass[ _-]?drum|킥/i, "kick"],
   [/snare|\bsd\b|rim|clap|스네어|클랩/i, "snare"],
   [/hi[ _-]?hat|hat|\bhh\b|하이햇|햇/i, "hihat"],
@@ -146,10 +168,22 @@ const NAME_RULES = [
   [/fx|riser|sweep|impact|whoosh|noise|효과/i, "fx"],
 ];
 
+/* 보컬 서브타입 (더블/하모니/애드립/떼창). 악기 키워드가 따로 있으면 악기가 우선
+   (예: "GTR_DBL"은 기타, "Vox_DBL"·"Double_01"은 보컬 더블) */
+const SUBTYPE_RULES = [
+  [/dbl|double|\bdub\b|더블/i, "vocal_double"],
+  [/harm|\bhrm\b|stack|화음|하모니/i, "vocal_harmony"],
+  [/ad[ _-]?lib|애드립|애드리브/i, "vocal_adlib"],
+  [/chant|gang[ _-]?vo|crowd|떼창/i, "vocal_chant"],
+];
+
 function classifyByName(name) {
   const n = name.toLowerCase().replace(/^\d+[ _.-]*/, "");
-  for (const [re, role] of NAME_RULES) if (re.test(n)) return role;
-  return null;
+  let base = null;
+  for (const [re, role] of NAME_RULES) if (re.test(n)) { base = role; break; }
+  for (const [re, role] of SUBTYPE_RULES)
+    if (re.test(n) && (base === null || base === "vocal" || base === "backing_vocal")) return role;
+  return base;
 }
 
 /* ───────────────────────── DSP 기초: RBJ biquad ───────────────────────── */
@@ -349,13 +383,13 @@ function findKickF0(mono, sr) {
 }
 
 /* ───────────────────────── 리버브 (Convolver, OfflineAudioContext) ───────────────────────── */
-async function reverbRender(sendL, sendR, sr) {
-  const irSec = 2.2, irLen = Math.floor(sr * irSec);
+async function reverbRender(sendL, sendR, sr, irSec = 2.2, lpHz = 6000) {
+  const irLen = Math.floor(sr * irSec);
   const ir = [new Float32Array(irLen), new Float32Array(irLen)];
   for (let ch = 0; ch < 2; ch++) {
     for (let i = 0; i < irLen; i++)
       ir[ch][i] = (Math.random() * 2 - 1) * Math.exp(-3.2 * i / irLen);
-    applyBq(ir[ch], bqLowpass(sr, 6000));    // 어두운 꼬리
+    applyBq(ir[ch], bqLowpass(sr, lpHz));    // 어두운 꼬리
     applyBq(ir[ch], bqHighpass(sr, 250));    // 저음 머드 방지
   }
   const ctx = new OfflineAudioContext(2, sendL.length + irLen, sr);
@@ -455,8 +489,9 @@ function renderTable() {
     const small = document.createElement("div"); small.className = "meta"; small.textContent = `(${s.by} 인식)`;
     td2.appendChild(small);
     const td3 = document.createElement("td");
-    td3.innerHTML = `<span class="pill">목표 ${(BALANCE_REF_LUFS + p.offset).toFixed(0)} LUFS</span>` +
-                    `<span class="pill">리버브 ${(p.send * 100).toFixed(0)}%</span>` +
+    td3.innerHTML = `<span class="pill">${BUSES[ROLE_TO_BUS[s.role]].label}</span>` +
+                    `<span class="pill">목표 ${(BALANCE_REF_LUFS + p.offset).toFixed(0)} LUFS</span>` +
+                    `<span class="pill">리버브 ${(p.send * 100).toFixed(0)}% ${p.space === "far" ? "(먼 홀)" : ""}</span>` +
                     `<span class="pill">컴프 ${p.comp[1]}:1</span>`;
     tr.append(td1, td2, td3);
     trackBody.appendChild(tr);
@@ -488,82 +523,111 @@ mixBtn.addEventListener("click", async () => {
 
     const hasVocal = stems.some(s => s.role === "vocal");
     const mixL = new Float32Array(length), mixR = new Float32Array(length);
-    let sendL = new Float32Array(length), sendR = new Float32Array(length);
+    let sendCL = new Float32Array(length), sendCR = new Float32Array(length); // 가까운 공간
+    let sendFL = new Float32Array(length), sendFR = new Float32Array(length); // 먼 공간
 
-    // 메모리 절약: 트랙을 하나씩 디코딩→처리→합산→해제.
-    // 덕킹 트리거(킥/보컬)를 먼저 처리해야 하므로 순서를 정렬한다.
-    const pri = r => (r === "kick" ? 0 : r === "vocal" ? 1 : 2);
-    const ordered = [...stems].sort((a, b) => pri(a.role) - pri(b.role));
+    // 버스 순서대로 처리: 리드 먼저(덕킹 트리거), 드럼이 베이스보다 먼저(킥 트리거).
+    // 트랙은 디코딩→처리→버스 합산→즉시 해제 (메모리 절약)
     let kickTrig = null, vocalTrig = null, kickDg = null, vocalDg = null, kickF0 = null;
     let done = 0;
+    const busNotes = [];
 
-    for (const s of ordered) {
-      const p = PROFILES[s.role];
-      await setStatus(`트랙 처리 중 (${++done}/${ordered.length}): ${s.name} (${p.label}) ...`);
-      let { L, R } = await decodeStem(s.file);
+    for (const [busName, bus] of Object.entries(BUSES)) {
+      const busStems = stems.filter(s => ROLE_TO_BUS[s.role] === busName);
+      if (!busStems.length) continue;
+      let busL = new Float32Array(length), busR = new Float32Array(length);
 
-      if (s.role === "kick" && kickF0 === null) {                   // 킥 기음 → 베이스 카빙 기준
-        const mono = new Float32Array(L.length);
-        for (let i = 0; i < L.length; i++) mono[i] = (L[i] + R[i]) / 2;
-        kickF0 = findKickF0(mono, sr);
-        if (kickF0) notes.push(`킥 기음 ${kickF0}Hz 감지 → 베이스 마스킹 카빙 -2.5dB`);
-      }
+      for (const s of busStems) {
+        const p = PROFILES[s.role];
+        await setStatus(`트랙 처리 중 (${++done}/${stems.length}): ${s.name} (${p.label} → ${bus.label}) ...`);
+        let { L, R } = await decodeStem(s.file);
 
-      gainToLufs(L, R, sr, PRE_CHAIN_LUFS);                         // 게인 스테이징
-      const chain = [bqHighpass(sr, p.hpf)];
-      for (const [f, g, q] of p.eq) chain.push(bqPeak(sr, f, g, q));
-      if (p.hs) chain.push(bqShelf(sr, p.hs[0], p.hs[1], true));
-      for (const co of chain) { applyBq(L, co); applyBq(R, co); }   // EQ
-      compress(L, R, sr, ...p.comp);                                // 컴프
+        if (s.role === "kick" && kickF0 === null) {                 // 킥 기음 → 베이스 카빙 기준
+          const mono = new Float32Array(L.length);
+          for (let i = 0; i < L.length; i++) mono[i] = (L[i] + R[i]) / 2;
+          kickF0 = findKickF0(mono, sr);
+          if (kickF0) notes.push(`킥 기음 ${kickF0}Hz 감지 → 베이스 마스킹 카빙 -2.5dB`);
+        }
 
-      if (s.role === "vocal" || s.role === "backing_vocal") {       // 디에서
-        const red = deess(L, R, sr);
-        if (red > 0.5) notes.push(`${s.name}: 디에서 최대 -${red.toFixed(1)}dB`);
-      }
-      gainToLufs(L, R, sr, BALANCE_REF_LUFS + p.offset);            // 밸런스
+        gainToLufs(L, R, sr, PRE_CHAIN_LUFS);                       // 게인 스테이징
+        const chain = [bqHighpass(sr, p.hpf)];
+        for (const [f, g, q] of p.eq) chain.push(bqPeak(sr, f, g, q));
+        if (p.hs) chain.push(bqShelf(sr, p.hs[0], p.hs[1], true));
+        for (const co of chain) { applyBq(L, co); applyBq(R, co); } // EQ
+        compress(L, R, sr, ...p.comp);                              // 컴프
 
-      if (s.role === "bass" && kickF0) {                            // 마스킹 카빙
-        const co = bqPeak(sr, kickF0, -2.5, 1.4); applyBq(L, co); applyBq(R, co);
-      }
-      if (VOCAL_CARVE_ROLES.has(s.role) && hasVocal) {              // 보컬 자리 양보
-        const co = bqPeak(sr, 3000, -1.5, 0.8); applyBq(L, co); applyBq(R, co);
-        notes.push(`${s.name}: 보컬 자리 양보 3kHz -1.5dB`);
-      }
-      const theta = (Math.max(-1, Math.min(1, s.pan)) + 1) * Math.PI / 4; // 등파워 패닝
-      const gl = Math.cos(theta) * Math.SQRT2, gr = Math.sin(theta) * Math.SQRT2;
-      for (let i = 0; i < L.length; i++) { L[i] *= gl; R[i] *= gr; }
+        if (DEESS_ROLES.has(s.role)) {                              // 디에서 (보컬류 전체)
+          const red = deess(L, R, sr);
+          if (red > 0.5) notes.push(`${s.name}: 디에서 최대 -${red.toFixed(1)}dB`);
+        }
+        gainToLufs(L, R, sr, BALANCE_REF_LUFS + p.offset);          // 밸런스
 
-      // 사이드체인 덕킹: 트리거 수집(킥/보컬) → 나머지 트랙에 적용
-      if (s.role === "kick") {
-        if (!kickTrig) kickTrig = new Float32Array(length);
-        for (let i = 0; i < L.length; i++) kickTrig[i] += (L[i] + R[i]) / 2;
-      } else if (s.role === "vocal") {
-        if (!vocalTrig) vocalTrig = new Float32Array(length);
-        for (let i = 0; i < L.length; i++) vocalTrig[i] += (L[i] + R[i]) / 2;
-      } else {
-        if (!kickDg && kickTrig) { kickDg = duckingGain(kickTrig, sr, 0.3); kickTrig = null; }
-        if (!vocalDg && vocalTrig) { vocalDg = duckingGain(vocalTrig, sr, 0.2, 15, 250); vocalTrig = null; }
+        if (s.role === "bass" && kickF0) {                          // 마스킹 카빙
+          const co = bqPeak(sr, kickF0, -2.5, 1.4); applyBq(L, co); applyBq(R, co);
+        }
+        if (VOCAL_CARVE_ROLES.has(s.role) && hasVocal) {            // 보컬 자리 양보
+          const co = bqPeak(sr, 3000, -1.5, 0.8); applyBq(L, co); applyBq(R, co);
+          notes.push(`${s.name}: 보컬 자리 양보 3kHz -1.5dB`);
+        }
+        const theta = (Math.max(-1, Math.min(1, s.pan)) + 1) * Math.PI / 4; // 등파워 패닝
+        const gl = Math.cos(theta) * Math.SQRT2, gr = Math.sin(theta) * Math.SQRT2;
+        for (let i = 0; i < L.length; i++) { L[i] *= gl; R[i] *= gr; }
+
+        // 트랙 레벨 덕킹: 킥→베이스, 리드→패드/스트링
         if (s.role === "bass" && kickDg) {
           applyDucking(L, R, kickDg);
           notes.push(`${s.name}: 킥이 칠 때 최대 -3dB 덕킹`);
         }
         if (VOCAL_DUCK_ROLES.has(s.role) && vocalDg) {
           applyDucking(L, R, vocalDg);
-          notes.push(`${s.name}: 보컬이 나올 때 최대 -2dB 덕킹`);
+          notes.push(`${s.name}: 리드 보컬이 나올 때 최대 -2dB 덕킹`);
         }
+
+        // 덕킹 트리거 수집 (킥/리드 보컬)
+        if (s.role === "kick") {
+          if (!kickTrig) kickTrig = new Float32Array(length);
+          for (let i = 0; i < L.length; i++) kickTrig[i] += (L[i] + R[i]) / 2;
+        } else if (s.role === "vocal") {
+          if (!vocalTrig) vocalTrig = new Float32Array(length);
+          for (let i = 0; i < L.length; i++) vocalTrig[i] += (L[i] + R[i]) / 2;
+        }
+
+        const sL = p.space === "far" ? sendFL : sendCL;             // 리버브 공간 라우팅
+        const sR = p.space === "far" ? sendFR : sendCR;
+        for (let i = 0; i < L.length; i++) {                        // 버스 합산 후 트랙 해제
+          busL[i] += L[i]; busR[i] += R[i];
+          sL[i] += L[i] * p.send; sR[i] += R[i] * p.send;
+        }
+        L = R = null;
       }
 
-      for (let i = 0; i < L.length; i++) {                          // 합산 후 트랙 메모리 해제
-        mixL[i] += L[i]; mixR[i] += R[i];
-        sendL[i] += L[i] * p.send; sendR[i] += R[i] * p.send;
+      // 버스 체인: 캐릭터 EQ → 글루 컴프 → 리드 보컬 덕킹
+      for (const [f, g, q] of bus.eq) { const co = bqPeak(sr, f, g, q); applyBq(busL, co); applyBq(busR, co); }
+      if (bus.hs) { const co = bqShelf(sr, bus.hs[0], bus.hs[1], true); applyBq(busL, co); applyBq(busR, co); }
+      if (bus.comp) compress(busL, busR, sr, ...bus.comp);
+      if (bus.duck > 0 && vocalDg) {
+        applyDucking(busL, busR, { ...vocalDg, depth: bus.duck });
+        busNotes.push(`${bus.label}: 리드 보컬 덕킹 최대 ${(20 * Math.log10(1 - bus.duck)).toFixed(1)}dB`);
       }
-      L = R = null;
+      for (let i = 0; i < length; i++) { mixL[i] += busL[i]; mixR[i] += busR[i]; }
+      busL = busR = null;
+
+      // 트리거 → 덕킹 게인 (이후 버스들이 사용)
+      if (kickTrig && !kickDg) { kickDg = duckingGain(kickTrig, sr, 0.3); kickTrig = null; }
+      if (vocalTrig && !vocalDg) { vocalDg = duckingGain(vocalTrig, sr, 0.2, 15, 250); vocalTrig = null; }
     }
-    await setStatus("리버브 버스 렌더링 중...");
-    const rv = await reverbRender(sendL, sendR, sr);
-    sendL = sendR = null;
-    const rl = rv.getChannelData(0), rr = rv.getChannelData(1);
+    notes.push(...busNotes);
+    await setStatus("리버브 렌더링 중 (가까운 플레이트)...");
+    let rv = await reverbRender(sendCL, sendCR, sr, 1.8, 6500);
+    sendCL = sendCR = null;
+    let rl = rv.getChannelData(0), rr = rv.getChannelData(1);
     for (let i = 0; i < length; i++) { mixL[i] += rl[i] * 0.6; mixR[i] += rr[i] * 0.6; }
+    await setStatus("리버브 렌더링 중 (먼 홀)...");
+    rv = await reverbRender(sendFL, sendFR, sr, 3.2, 4200);
+    sendFL = sendFR = null;
+    rl = rv.getChannelData(0); rr = rv.getChannelData(1);
+    for (let i = 0; i < length; i++) { mixL[i] += rl[i] * 0.6; mixR[i] += rr[i] * 0.6; }
+    rv = rl = rr = null;
 
     // 믹스 버스
     await setStatus("믹스 버스: 글루 컴프 → 에어 → 라우드니스 → 리미터 ...");
@@ -600,7 +664,7 @@ function buildReport(finalLufs, targetLufs, notes) {
   const rows = stems.map(s => {
     const p = PROFILES[s.role];
     const pan = Math.abs(s.pan) < 0.05 ? "C" : (s.pan < 0 ? `L${Math.round(-s.pan * 100)}` : `R${Math.round(s.pan * 100)}`);
-    return `<li><b>${s.name}</b> — ${p.label} · 입력 ${s.inputLufs.toFixed(1)} → 목표 ${(BALANCE_REF_LUFS + p.offset).toFixed(0)} LUFS · 팬 ${pan} · 리버브 ${(p.send * 100).toFixed(0)}%</li>`;
+    return `<li><b>${s.name}</b> — ${p.label} → <b>${BUSES[ROLE_TO_BUS[s.role]].label}</b> · 입력 ${s.inputLufs.toFixed(1)} → 목표 ${(BALANCE_REF_LUFS + p.offset).toFixed(0)} LUFS · 팬 ${pan} · 리버브 ${(p.send * 100).toFixed(0)}% (${p.space === "far" ? "먼 홀" : "가까운 플레이트"})</li>`;
   }).join("");
   const noteItems = notes.length ? notes.map(n => `<li class="note">${n}</li>`).join("") : "<li>(해당 없음)</li>";
   return `<h3>트랙별 처리</h3><ul>${rows}</ul>

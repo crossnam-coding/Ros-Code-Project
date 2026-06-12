@@ -28,6 +28,10 @@ ROLES = (
     "brass",
     "vocal",
     "backing_vocal",
+    "vocal_double",   # 리드를 겹친 더블 트랙
+    "vocal_harmony",  # 화음 스택
+    "vocal_adlib",    # 애드립
+    "vocal_chant",    # 떼창/군중 코러스
     "fx",
     "other",
 )
@@ -35,7 +39,7 @@ ROLES = (
 # 키워드 → 악기군. 위에서부터 순서대로 검사하므로 구체적인 것을 먼저 둔다.
 _KEYWORD_RULES: list[tuple[str, str]] = [
     (r"back(ing)?[ _-]?vo|bgv|chorus[ _-]?vo|harmony|코러스|백보컬", "backing_vocal"),
-    (r"vo(x|cal|ice)?\b|vocal|lead[ _-]?vo|acapella|보컬|목소리|노래", "vocal"),
+    (r"vo(x|cal|ice)?\b|vocal|lead[ _-]?vo|main[ _-]?vo|acapella|(?<![a-z0-9])v\d+(?![0-9])|보컬|메인|목소리|노래", "vocal"),
     (r"kick|bd\b|bass[ _-]?drum|킥", "kick"),
     (r"snare|sd\b|rim|clap|스네어|클랩", "snare"),
     (r"hi[ _-]?hat|hat|hh\b|하이햇|햇", "hihat"),
@@ -62,15 +66,30 @@ class StemFeatures:
     percussiveness: float         # 크레스트 팩터 기반 타악기성 (0~1 근사)
 
 
+# 보컬 서브타입 (더블/하모니/애드립/떼창). 악기 키워드가 따로 있으면 악기가 우선
+# (예: "GTR_DBL"은 기타, "Vox_DBL"·"Double_01"은 보컬 더블)
+_VOCAL_SUBTYPE_RULES: list[tuple[str, str]] = [
+    (r"dbl|double|\bdub\b|더블", "vocal_double"),
+    (r"harm|\bhrm\b|stack|화음|하모니", "vocal_harmony"),
+    (r"ad[ _-]?lib|애드립|애드리브", "vocal_adlib"),
+    (r"chant|gang[ _-]?vo|crowd|떼창", "vocal_chant"),
+]
+
+
 def classify_by_name(filename: str) -> str | None:
     """파일명 키워드로 악기군을 판별한다. 못 찾으면 None."""
     name = filename.lower()
     # "01_Kick.wav" 같은 트랙 번호 접두사는 무시
     name = re.sub(r"^\d+[ _.-]*", "", name)
+    base = None
     for pattern, role in _KEYWORD_RULES:
         if re.search(pattern, name):
+            base = role
+            break
+    for pattern, role in _VOCAL_SUBTYPE_RULES:
+        if re.search(pattern, name) and base in (None, "vocal", "backing_vocal"):
             return role
-    return None
+    return base
 
 
 def compute_features(audio: np.ndarray, sr: int) -> StemFeatures:

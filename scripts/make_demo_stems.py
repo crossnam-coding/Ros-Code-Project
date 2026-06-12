@@ -123,6 +123,21 @@ def vocal() -> np.ndarray:
     return out
 
 
+def vocal_shift(ratio: float, detune: float = 1.0) -> np.ndarray:
+    """vocal()과 같은 멜로디를 음정 비율만 바꿔 하모니/더블 흉내."""
+    out = np.zeros(TOTAL)
+    melody = ["G4", "E4", "A4", "G4", "E4", "C4", "F4", "G4"]
+    n = int(SR * BEAT_SEC * 1.6)
+    t = np.arange(n) / SR
+    fade = np.minimum(1.0, np.minimum(t / 0.05, (n / SR - t) / 0.3))
+    for i, name in enumerate(melody):
+        f = NOTES[name] * ratio * detune
+        vib = 1 + 0.012 * np.sin(2 * np.pi * 5.2 * t) * np.minimum(t / 0.4, 1)
+        tone = (np.sin(2 * np.pi * f * vib * t) + 0.3 * np.sin(2 * np.pi * 2 * f * vib * t)) * fade
+        place(out, tone * 0.45, i * 2)
+    return out
+
+
 def main() -> None:
     out_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("demo_stems")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -134,6 +149,9 @@ def main() -> None:
         "05_Piano.wav": piano(),
         "06_Pad.wav": pad(),
         "07_LeadVocal.wav": vocal(),
+        "08_Vox_DBL.wav": vocal_shift(1.0, detune=1.004),   # 더블 (미세 디튠)
+        "09_Harmony_Hi.wav": vocal_shift(1.25),             # 장3도 위 하모니
+        "10_Adlib.wav": vocal_shift(1.5),                   # 5도 위 애드립 흉내
     }
     for name, audio in stems.items():
         peak = np.abs(audio).max()
