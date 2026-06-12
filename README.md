@@ -1,3 +1,17 @@
+# Ros Code Project
+
+## 🎚️ automix — 멀티트랙 자동 믹싱 엔진
+
+스템 폴더를 넣으면 자동으로 믹스해주는 룰 베이스 엔진.
+사용법은 [automix/README.md](automix/README.md) 참고.
+
+```bash
+pip install -r requirements.txt
+python3 -m automix ./스템폴더 -o mix.wav
+```
+
+---
+
 # 🚀 Space Shooter
 
 누구나 즐길 수 있는 단일 파일 2D 슈팅 게임. 설치 없이 브라우저로 바로 플레이.

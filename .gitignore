@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+demo_stems/
+output/
+*.wav
+*.flac
+*.aiff
+*.mp3
