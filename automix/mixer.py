@@ -1,19 +1,29 @@
-"""자동 믹싱 파이프라인 본체."""
+"""자동 믹싱 파이프라인 본체.
+
+룰 베이스 정석 체인에 더해, 소스를 분석해서 반응하는 처리(엔지니어 방식)를 수행한다:
+  - 공진 감지 EQ: 트랙에서 실제로 튀는 좁은 대역을 찾아서 깎음
+  - 마스킹 카빙: 킥 기음 주파수를 찾아 베이스에서 그 자리를 비켜줌,
+    보컬이 있으면 미드 악기들의 3kHz를 살짝 양보
+  - 디에서: 보컬 치찰음 대역만 동적으로 억제
+  - 사이드체인 덕킹: 킥이 칠 때 베이스를, 보컬이 나올 때 패드/스트링을 살짝 눌러줌
+"""
 
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 import pyloudnorm
 import soundfile as sf
-from pedalboard import Compressor, HighShelfFilter, Limiter, Pedalboard, Reverb
+from pedalboard import Compressor, HighShelfFilter, Limiter, PeakFilter, Pedalboard, Reverb
 from scipy.signal import resample_poly
 
+from .analysis import find_low_fundamental, find_resonances
 from .chains import PROFILES, RoleProfile, build_chain, describe_chain
 from .classify import classify
+from .dynamics import apply_ducking, deess, ducking_gain
 
 AUDIO_EXTENSIONS = {".wav", ".flac", ".aif", ".aiff", ".ogg", ".mp3"}
 
@@ -23,6 +33,16 @@ PRE_CHAIN_LUFS = -20.0
 
 # 믹스 안에서 보컬(offset 0.0)이 갖는 기준 라우드니스. 다른 악기는 상대 오프셋.
 BALANCE_REF_LUFS = -18.0
+
+# 공진 감지 EQ를 적용할 악기군 (트랜지언트 위주 악기는 오탐이 많아 제외)
+RESONANCE_ROLES = {"vocal", "backing_vocal", "guitar", "piano", "keys", "synth",
+                   "bass", "strings", "brass", "snare", "other"}
+
+# 보컬이 있을 때 3kHz 자리를 양보하는 악기군
+VOCAL_CARVE_ROLES = {"guitar", "piano", "keys", "synth", "pad", "strings", "brass"}
+
+# 보컬 덕킹을 받는 악기군 (보컬이 나올 때 살짝 물러나는 배경 악기)
+VOCAL_DUCK_ROLES = {"pad", "strings"}
 
 
 @dataclass
@@ -38,6 +58,7 @@ class StemResult:
     pan: float
     reverb_send: float
     chain_description: str
+    notes: list[str] = field(default_factory=list)  # 소스 반응형 처리 내역
 
 
 def _to_stereo(audio: np.ndarray) -> np.ndarray:
@@ -111,6 +132,17 @@ def find_stems(stems_dir: Path) -> list[Path]:
     return files
 
 
+@dataclass
+class _Stem:
+    path: Path
+    audio: np.ndarray          # 처리 단계에 따라 갱신됨
+    role: str
+    classified_by: str
+    input_lufs: float
+    pan: float = 0.0
+    result: StemResult | None = None
+
+
 def mix_directory(
     stems_dir: str | Path,
     output_path: str | Path,
@@ -136,75 +168,132 @@ def mix_directory(
     sr = max(rates)
     log(f"스템 {len(files)}개 로드 (샘플레이트 {sr}Hz로 통일)")
 
-    loaded: list[tuple[Path, np.ndarray]] = []
+    stems: list[_Stem] = []
     for path in files:
         audio, _ = _load_audio(path, sr)
-        loaded.append((path, _to_stereo(audio)))
-
-    length = max(a.shape[0] for _, a in loaded)
-
-    # ── 2. 분류 ──────────────────────────────────────────────
-    classified: list[tuple[Path, np.ndarray, str, str, float]] = []
-    for path, audio in loaded:
+        audio = _to_stereo(audio)
         input_lufs = _measure_lufs(audio, sr)
         if not math.isfinite(input_lufs):
             log(f"  [건너뜀] {path.name}: 무음이거나 너무 짧음")
             continue
         role, how = classify(path.name, audio, sr)
-        classified.append((path, audio, role, how, input_lufs))
+        stems.append(_Stem(path, audio, role, how, input_lufs))
 
-    if not classified:
+    if not stems:
         raise ValueError("처리 가능한 스템이 없습니다 (전부 무음/초단편).")
+    length = max(s.audio.shape[0] for s in stems)
+
+    # ── 2. 곡 전체 컨텍스트 분석 (마스킹 카빙/덕킹의 기준) ─────────────
+    kick_stems = [s for s in stems if s.role == "kick"]
+    has_vocal = any(s.role == "vocal" for s in stems)
+    kick_f0 = None
+    if kick_stems:
+        kick_f0 = find_low_fundamental(kick_stems[0].audio, sr)
+        if kick_f0:
+            log(f"킥 기음 감지: {kick_f0:.0f}Hz → 베이스가 이 대역을 비켜줍니다")
 
     # 같은 악기군 개수를 세서 팬 위치 배정
     role_counts: dict[str, int] = {}
-    for _, _, role, _, _ in classified:
-        role_counts[role] = role_counts.get(role, 0) + 1
+    for s in stems:
+        role_counts[s.role] = role_counts.get(s.role, 0) + 1
     role_pan_queue: dict[str, list[float]] = {
         role: _assign_pans(count, PROFILES[role]) for role, count in role_counts.items()
     }
 
-    # ── 3~5. 트랙별 처리: 게인 스테이징 → 체인 → 밸런스 → 팬 ──────────
-    mix_bus = np.zeros((length, 2), dtype=np.float64)
-    reverb_send_bus = np.zeros((length, 2), dtype=np.float64)
-    results: list[StemResult] = []
-
-    for path, audio, role, how, input_lufs in classified:
-        profile = PROFILES[role]
+    # ── 3. 트랙별 처리 ─────────────────────────────────────────
+    #    게인 스테이징 → 공진 감지 EQ → 정석 체인 → 디에서 → 밸런스 → 카빙 → 팬
+    for s in stems:
+        profile = PROFILES[s.role]
         target = BALANCE_REF_LUFS + profile.target_lufs_offset
-        pan = role_pan_queue[role].pop(0)
+        s.pan = role_pan_queue[s.role].pop(0)
+        notes: list[str] = []
 
-        staged, _ = _gain_to_lufs(audio, sr, PRE_CHAIN_LUFS)
-        processed = build_chain(profile)(staged.T, sr).T  # pedalboard는 (ch, samples)
-        balanced, _ = _gain_to_lufs(processed, sr, target)
-        panned = _apply_pan(balanced, pan)
+        audio, _ = _gain_to_lufs(s.audio, sr, PRE_CHAIN_LUFS)
 
-        padded = np.zeros((length, 2), dtype=np.float64)
-        padded[: panned.shape[0]] = panned
-        mix_bus += padded
-        reverb_send_bus += padded * profile.reverb_send
+        if s.role in RESONANCE_ROLES:
+            cuts = find_resonances(audio, sr)
+            if cuts:
+                eq = Pedalboard([PeakFilter(cutoff_frequency_hz=c.freq, gain_db=c.gain_db, q=c.q) for c in cuts])
+                audio = eq(audio.T, sr).T
+                notes.append("공진 컷: " + ", ".join(c.describe() for c in cuts))
 
-        results.append(StemResult(
-            filename=path.name,
-            role=role,
+        audio = build_chain(profile)(audio.T, sr).T  # pedalboard는 (ch, samples)
+
+        if s.role in ("vocal", "backing_vocal"):
+            audio, max_red = deess(audio, sr)
+            if max_red > 0.5:
+                notes.append(f"디에서: 최대 -{max_red:.1f}dB (4.5~9kHz)")
+
+        audio, _ = _gain_to_lufs(audio, sr, target)
+
+        carve = []
+        if s.role == "bass" and kick_f0:
+            carve.append(PeakFilter(cutoff_frequency_hz=kick_f0, gain_db=-2.5, q=1.4))
+            notes.append(f"마스킹 카빙: 킥 기음 {kick_f0:.0f}Hz -2.5dB")
+        if s.role in VOCAL_CARVE_ROLES and has_vocal:
+            carve.append(PeakFilter(cutoff_frequency_hz=3000, gain_db=-1.5, q=0.8))
+            notes.append("보컬 자리 양보: 3kHz -1.5dB")
+        if carve:
+            audio = Pedalboard(carve)(audio.T, sr).T
+
+        s.audio = _apply_pan(audio, s.pan)
+        s.result = StemResult(
+            filename=s.path.name,
+            role=s.role,
             role_label=profile.label,
-            classified_by="파일명" if how == "name" else "스펙트럼 분석",
-            input_lufs=input_lufs,
+            classified_by="파일명" if s.classified_by == "name" else "스펙트럼 분석",
+            input_lufs=s.input_lufs,
             target_lufs=target,
-            pan=pan,
+            pan=s.pan,
             reverb_send=profile.reverb_send,
             chain_description=describe_chain(profile),
-        ))
-        log(f"  [{profile.label}] {path.name} → 목표 {target:.1f}LUFS, "
-            f"팬 {pan:+.2f}, 리버브 {profile.reverb_send:.0%} ({results[-1].classified_by})")
+            notes=notes,
+        )
+        extra = f" | {' / '.join(notes)}" if notes else ""
+        log(f"  [{profile.label}] {s.path.name} → 목표 {target:.1f}LUFS, "
+            f"팬 {s.pan:+.2f}, 리버브 {profile.reverb_send:.0%}{extra}")
 
-    # ── 6. 공용 리버브 버스 (공간감) ─────────────────────────────
+    # ── 4. 사이드체인 덕킹: 킥→베이스, 보컬→패드/스트링 ────────────────
+    def _trigger(roles: tuple[str, ...]) -> np.ndarray | None:
+        sources = [s.audio for s in stems if s.role in roles]
+        if not sources:
+            return None
+        out = np.zeros(length)
+        for src in sources:
+            out[: src.shape[0]] += src.mean(axis=1)
+        return out
+
+    kick_trigger = _trigger(("kick",))
+    if kick_trigger is not None and any(s.role == "bass" for s in stems):
+        gain = ducking_gain(kick_trigger, sr, depth=0.3)
+        for s in stems:
+            if s.role == "bass":
+                s.audio = apply_ducking(s.audio, gain)
+                s.result.notes.append("사이드체인 덕킹: 킥이 칠 때 최대 -3dB")
+        log("덕킹: 킥 → 베이스 (최대 -3dB)")
+
+    vocal_trigger = _trigger(("vocal",))
+    duck_targets = [s for s in stems if s.role in VOCAL_DUCK_ROLES]
+    if vocal_trigger is not None and duck_targets:
+        gain = ducking_gain(vocal_trigger, sr, depth=0.2, attack_ms=15, release_ms=250)
+        for s in duck_targets:
+            s.audio = apply_ducking(s.audio, gain)
+            s.result.notes.append("사이드체인 덕킹: 보컬이 나올 때 최대 -2dB")
+        log("덕킹: 보컬 → 패드/스트링 (최대 -2dB)")
+
+    # ── 5. 합산 + 공용 리버브 버스 (공간감) ─────────────────────────
+    mix_bus = np.zeros((length, 2), dtype=np.float64)
+    reverb_send_bus = np.zeros((length, 2), dtype=np.float64)
+    for s in stems:
+        mix_bus[: s.audio.shape[0]] += s.audio
+        reverb_send_bus[: s.audio.shape[0]] += s.audio * PROFILES[s.role].reverb_send
+
     log("리버브 버스 처리 중...")
     reverb = Pedalboard([Reverb(room_size=0.55, damping=0.5, wet_level=1.0, dry_level=0.0, width=1.0)])
     reverb_return = reverb(reverb_send_bus.T.astype(np.float32), sr).T.astype(np.float64)
     mix_bus += reverb_return[:length]
 
-    # ── 7. 믹스 버스: 글루 컴프 → 에어 → 라우드니스 정렬 → 리미터 ─────
+    # ── 6. 믹스 버스: 글루 컴프 → 에어 → 라우드니스 정렬 → 리미터 ───────
     log("믹스 버스 처리 중...")
     bus_chain = Pedalboard([
         Compressor(threshold_db=-14, ratio=2.0, attack_ms=30, release_ms=200),
@@ -226,10 +315,11 @@ def mix_directory(
     final_lufs = _measure_lufs(mix, sr)
     log(f"믹스 완료 → {output_path} ({final_lufs:.1f} LUFS, {sr}Hz/24bit)")
 
-    # ── 8. (선택) 레퍼런스 마스터링 ──────────────────────────────
+    # ── 7. (선택) 레퍼런스 마스터링 ──────────────────────────────
     if reference is not None:
         _master_with_reference(output_path, Path(reference), log)
 
+    results = [s.result for s in stems]
     _write_report(output_path, results, final_lufs, target_lufs)
     return results
 
@@ -273,6 +363,14 @@ def _write_report(output_path: Path, results: list[StemResult], final_lufs: floa
     lines += ["", "## 트랙별 이펙트 체인", ""]
     for r in results:
         lines.append(f"- **{r.filename}** ({r.role_label}): {r.chain_description}")
+    lines += ["", "## 소스 반응형 처리 (분석 기반)", ""]
+    any_notes = False
+    for r in results:
+        for note in r.notes:
+            lines.append(f"- **{r.filename}**: {note}")
+            any_notes = True
+    if not any_notes:
+        lines.append("- (해당 없음)")
     lines += [
         "",
         "## 믹스 버스",

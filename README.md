@@ -2,8 +2,13 @@
 
 ## 🎚️ automix — 멀티트랙 자동 믹싱 엔진
 
-스템 폴더를 넣으면 자동으로 믹스해주는 룰 베이스 엔진.
-사용법은 [automix/README.md](automix/README.md) 참고.
+스템을 넣으면 자동으로 믹스해주는 엔진. 악기별 정석 EQ/컴프 체인에 더해
+공진 감지 EQ, 마스킹 카빙, 사이드체인 덕킹, 디에서 등 소스 반응형 처리 포함.
+자세한 사용법은 [automix/README.md](automix/README.md) 참고.
+
+- **웹 UI**: [mixer/index.html](mixer/index.html) — 브라우저에 스템을 드래그&드롭하면 끝
+  (GitHub Pages 배포 시 `https://crossnam-coding.github.io/Ros-Code-Project/mixer/`)
+- **CLI (파이썬)**:
 
 ```bash
 pip install -r requirements.txt

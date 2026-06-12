@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>automix — 멀티트랙 자동 믹싱</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1d2026; --panel2: #242830; --line: #32363f;
+    --text: #e8eaed; --dim: #9aa0a8; --accent: #4fc3f7; --accent2: #81c784; --warn: #ffb74d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 26px; margin: 8px 0 4px; }
+  h1 .badge { font-size: 12px; color: var(--bg); background: var(--accent); border-radius: 6px;
+              padding: 2px 8px; vertical-align: middle; margin-left: 8px; }
+  .sub { color: var(--dim); margin: 0 0 20px; font-size: 14px; line-height: 1.6; }
+  #drop { border: 2px dashed var(--line); border-radius: 14px; padding: 36px 16px; text-align: center;
+          color: var(--dim); cursor: pointer; transition: all .15s; background: var(--panel); }
+  #drop.over { border-color: var(--accent); color: var(--accent); background: #1a2230; }
+  #drop strong { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; }
+  th { text-align: left; color: var(--dim); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  td.fname { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  select { background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+           border-radius: 8px; padding: 6px 8px; font-size: 14px; }
+  .meta { color: var(--dim); font-size: 12px; }
+  .controls { display: flex; gap: 12px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+  button.primary { background: var(--accent); color: #06222e; font-weight: 700; font-size: 16px;
+                   border: none; border-radius: 10px; padding: 12px 28px; cursor: pointer; }
+  button.primary:disabled { background: var(--line); color: var(--dim); cursor: not-allowed; }
+  button.ghost { background: transparent; color: var(--dim); border: 1px solid var(--line);
+                 border-radius: 10px; padding: 10px 16px; cursor: pointer; }
+  #status { margin-top: 16px; color: var(--accent2); font-size: 14px; min-height: 20px; white-space: pre-wrap; }
+  #result { display: none; margin-top: 24px; background: var(--panel); border: 1px solid var(--line);
+            border-radius: 14px; padding: 20px; }
+  #result audio { width: 100%; margin: 10px 0; }
+  a.dl { display: inline-block; background: var(--accent2); color: #0c2410; font-weight: 700;
+         border-radius: 10px; padding: 10px 22px; text-decoration: none; margin-top: 6px; }
+  #report { margin-top: 18px; font-size: 13px; }
+  #report h3 { font-size: 15px; margin: 18px 0 8px; }
+  #report ul { margin: 6px 0; padding-left: 20px; color: var(--dim); line-height: 1.7; }
+  .pill { display: inline-block; background: var(--panel2); border: 1px solid var(--line);
+          border-radius: 999px; padding: 1px 9px; font-size: 12px; color: var(--dim); margin: 1px; }
+  .note { color: var(--warn); }
+  footer { margin-top: 40px; color: var(--dim); font-size: 12px; line-height: 1.7; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎚️ automix<span class="badge">프로토타입</span></h1>
+  <p class="sub">
+    멀티트랙(스템)을 끌어다 놓으면 브라우저 안에서 자동으로 믹스합니다 — 업로드 없음, 전부 내 컴퓨터에서 처리.<br>
+    악기별 정석 EQ/컴프 체인 · LUFS 자동 밸런스 · 자동 패닝 · 리버브 공간감 · 킥→베이스 덕킹 · 보컬 디에서 · 마스킹 카빙
+  </p>
+
+  <div id="drop">
+    <strong>스템 파일을 여기로 드래그</strong>하거나 클릭해서 선택<br>
+    <span class="meta">WAV / MP3 / FLAC(브라우저 지원 시) · 파일명에 악기 이름이 있으면 자동 인식 (Kick, Bass, Vocal, 보컬, 드럼...)</span>
+    <input type="file" id="fileInput" multiple accept="audio/*" style="display:none">
+  </div>
+
+  <table id="trackTable" style="display:none">
+    <thead><tr><th>파일</th><th>악기 (수정 가능)</th><th>자동 설정</th></tr></thead>
+    <tbody id="trackBody"></tbody>
+  </table>
+
+  <div class="controls">
+    <button class="primary" id="mixBtn" disabled>믹스하기</button>
+    <label class="meta">최종 라우드니스
+      <select id="targetLufs">
+        <option value="-14" selected>-14 LUFS (스트리밍 표준)</option>
+        <option value="-12">-12 LUFS (조금 크게)</option>
+        <option value="-9">-9 LUFS (CD/클럽 느낌)</option>
+      </select>
+    </label>
+    <button class="ghost" id="clearBtn" style="display:none">전체 비우기</button>
+  </div>
+  <div id="status"></div>
+
+  <div id="result">
+    <h3 style="margin-top:0">믹스 결과</h3>
+    <audio id="player" controls></audio><br>
+    <a class="dl" id="download" download="automix.wav">WAV 다운로드</a>
+    <div id="report"></div>
+  </div>
+
+  <footer>
+    악기별 레시피는 표준 믹싱 가이드(머드 컷, 캐릭터 부스트, 악기별 컴프 비율, 등파워 패닝, 리버브 뎁스)를
+    규칙으로 옮긴 것입니다. 라우드니스 측정은 ITU-R BS.1770(LUFS) 구현.<br>
+    공진 감지 EQ 등 일부 고급 기능은 파이썬 버전(<code>python3 -m automix</code>)에서 추가로 제공됩니다.
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+/* ───────────────────────── 악기 프로파일 (파이썬 chains.py 포팅) ─────────────────────────
+   eq: [freq, gainDb, Q] / comp: [thresholdDb, ratio, attackMs, releaseMs]
+   offset: 보컬(0) 기준 상대 목표 LUFS / spread: 같은 악기 여러 개일 때 좌우로 벌리는 폭 */
+const PROFILES = {
+  kick:          {label:"킥",            hpf:30,  eq:[[65,2,1],[350,-3,1.2],[3500,2,1]],            hs:null,        comp:[-14,4,15,80],   offset:-1,  pan:0,    spread:0,   send:0},
+  snare:         {label:"스네어",        hpf:80,  eq:[[200,1.5,1.2],[450,-2,1.2],[5000,2,0.9]],     hs:null,        comp:[-15,4,8,100],   offset:-3,  pan:0,    spread:0,   send:0.18},
+  hihat:         {label:"하이햇",        hpf:300, eq:[[7000,1,0.8]],                                hs:null,        comp:[-20,2,5,80],    offset:-10, pan:0.25, spread:0,   send:0.05},
+  drums:         {label:"드럼(버스)",    hpf:40,  eq:[[400,-1.5,1]],                                hs:[9000,1.5],  comp:[-16,3,12,120],  offset:-2.5,pan:0,    spread:0.5, send:0.10},
+  percussion:    {label:"퍼커션",        hpf:120, eq:[[350,-1.5,1.1]],                              hs:null,        comp:[-18,2.5,8,100], offset:-9,  pan:0.4,  spread:0.6, send:0.12},
+  bass:          {label:"베이스",        hpf:35,  eq:[[80,1.5,0.9],[250,-2,1.1],[800,1,1]],         hs:null,        comp:[-16,4,20,150],  offset:-2,  pan:0,    spread:0,   send:0},
+  guitar:        {label:"기타",          hpf:90,  eq:[[300,-2,1.1],[2500,1.5,0.9]],                 hs:null,        comp:[-18,2.5,12,120],offset:-6,  pan:0.5,  spread:1.0, send:0.15},
+  piano:         {label:"피아노",        hpf:70,  eq:[[280,-1.5,1]],                                hs:[8000,1],    comp:[-19,2,20,150],  offset:-6,  pan:-0.2, spread:0.4, send:0.18},
+  keys:          {label:"건반",          hpf:90,  eq:[[300,-1.5,1]],                                hs:null,        comp:[-19,2,15,140],  offset:-7,  pan:0.3,  spread:0.6, send:0.15},
+  synth:         {label:"신스",          hpf:100, eq:[[350,-1.5,1]],                                hs:null,        comp:[-18,2,10,120],  offset:-7,  pan:0.35, spread:0.7, send:0.12},
+  pad:           {label:"패드",          hpf:150, eq:[[400,-2,0.9]],                                hs:[8000,1],    comp:[-20,1.8,30,250],offset:-11, pan:0,    spread:0.8, send:0.30},
+  strings:       {label:"스트링",        hpf:120, eq:[[350,-1.5,1]],                                hs:[9000,1],    comp:[-20,2,25,200],  offset:-8,  pan:0,    spread:0.7, send:0.25},
+  brass:         {label:"브라스",        hpf:100, eq:[[300,-1.5,1],[2000,1,0.9]],                   hs:null,        comp:[-17,3,15,130],  offset:-7,  pan:0.3,  spread:0.6, send:0.15},
+  vocal:         {label:"보컬",          hpf:90,  eq:[[250,-2,1.1],[3000,2,0.9]],                   hs:[10000,1.5], comp:[-16,3,8,120],   offset:0,   pan:0,    spread:0,   send:0.20},
+  backing_vocal: {label:"백보컬",        hpf:120, eq:[[250,-2.5,1.1],[3000,1,0.9]],                 hs:null,        comp:[-18,3.5,8,120], offset:-7,  pan:0.45, spread:0.9, send:0.28},
+  fx:            {label:"이펙트",        hpf:150, eq:[],                                            hs:null,        comp:[-20,2,10,150],  offset:-12, pan:0,    spread:1.0, send:0.25},
+  other:         {label:"기타악기",      hpf:80,  eq:[[300,-1.5,1]],                                hs:null,        comp:[-18,2.5,12,130],offset:-7,  pan:0.2,  spread:0.6, send:0.12},
+};
+const PRE_CHAIN_LUFS = -20, BALANCE_REF_LUFS = -18;
+const VOCAL_CARVE_ROLES = new Set(["guitar","piano","keys","synth","pad","strings","brass"]);
+const VOCAL_DUCK_ROLES = new Set(["pad","strings"]);
+
+/* 파일명 키워드 분류 (구체적인 것 먼저) */
+const NAME_RULES = [
+  [/back(ing)?[ _-]?vo|bgv|chorus[ _-]?vo|harmony|코러스|백보컬/i, "backing_vocal"],
+  [/vo(x|cal|ice)\b|vocal|lead[ _-]?vo|acapella|보컬|목소리|노래/i, "vocal"],
+  [/kick|\bbd\b|bass[ _-]?drum|킥/i, "kick"],
+  [/snare|\bsd\b|rim|clap|스네어|클랩/i, "snare"],
+  [/hi[ _-]?hat|hat|\bhh\b|하이햇|햇/i, "hihat"],
+  [/overhead|\boh\b|cymbal|ride|crash|room|tom|drum|드럼|탐|심벌/i, "drums"],
+  [/perc|shaker|tamb|conga|bongo|cajon|퍼커션|쉐이커/i, "percussion"],
+  [/(?<![a-z])bass|\bsub\b|808|베이스/i, "bass"],
+  [/guitar|gtr|\bgt\b|elec[ _-]?g|acoustic[ _-]?g|기타/i, "guitar"],
+  [/piano|pno|grand|rhodes|epiano|피아노/i, "piano"],
+  [/organ|keys|\bkey\b|clav|건반/i, "keys"],
+  [/pad|패드/i, "pad"],
+  [/synth|saw|pluck|arp|lead(?![ _-]?vo)|신스|리드/i, "synth"],
+  [/string|violin|viola|cello|orch|스트링|현악/i, "strings"],
+  [/brass|horn|trumpet|sax|trombone|브라스|색소폰/i, "brass"],
+  [/fx|riser|sweep|impact|whoosh|noise|효과/i, "fx"],
+];
+
+function classifyByName(name) {
+  const n = name.toLowerCase().replace(/^\d+[ _.-]*/, "");
+  for (const [re, role] of NAME_RULES) if (re.test(n)) return role;
+  return null;
+}
+
+/* ───────────────────────── DSP 기초: RBJ biquad ───────────────────────── */
+function bqHighpass(fs, f0, Q = 0.7071) {
+  const w = 2 * Math.PI * f0 / fs, c = Math.cos(w), s = Math.sin(w), a = s / (2 * Q);
+  const b0 = (1 + c) / 2, b1 = -(1 + c), b2 = (1 + c) / 2, a0 = 1 + a, a1 = -2 * c, a2 = 1 - a;
+  return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
+}
+function bqLowpass(fs, f0, Q = 0.7071) {
+  const w = 2 * Math.PI * f0 / fs, c = Math.cos(w), s = Math.sin(w), a = s / (2 * Q);
+  const b0 = (1 - c) / 2, b1 = 1 - c, b2 = (1 - c) / 2, a0 = 1 + a, a1 = -2 * c, a2 = 1 - a;
+  return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
+}
+function bqPeak(fs, f0, gainDb, Q) {
+  const A = Math.pow(10, gainDb / 40), w = 2 * Math.PI * f0 / fs, c = Math.cos(w), s = Math.sin(w), a = s / (2 * Q);
+  const b0 = 1 + a * A, b1 = -2 * c, b2 = 1 - a * A, a0 = 1 + a / A, a1 = -2 * c, a2 = 1 - a / A;
+  return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
+}
+function bqShelf(fs, f0, gainDb, high, Q = 0.7071) {
+  const A = Math.pow(10, gainDb / 40), w = 2 * Math.PI * f0 / fs, c = Math.cos(w), s = Math.sin(w);
+  const a = s / 2 * Math.sqrt((A + 1 / A) * (1 / Q - 1) + 2), sq = 2 * Math.sqrt(A) * a;
+  let b0, b1, b2, a0, a1, a2;
+  if (high) {
+    b0 = A * ((A + 1) + (A - 1) * c + sq); b1 = -2 * A * ((A - 1) + (A + 1) * c); b2 = A * ((A + 1) + (A - 1) * c - sq);
+    a0 = (A + 1) - (A - 1) * c + sq;       a1 = 2 * ((A - 1) - (A + 1) * c);      a2 = (A + 1) - (A - 1) * c - sq;
+  } else {
+    b0 = A * ((A + 1) - (A - 1) * c + sq); b1 = 2 * A * ((A - 1) - (A + 1) * c);  b2 = A * ((A + 1) - (A - 1) * c - sq);
+    a0 = (A + 1) + (A - 1) * c + sq;       a1 = -2 * ((A - 1) + (A + 1) * c);     a2 = (A + 1) + (A - 1) * c - sq;
+  }
+  return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
+}
+function applyBq(x, co) { // Direct Form II transposed, in place
+  const [b0, b1, b2, a1, a2] = co;
+  let z1 = 0, z2 = 0;
+  for (let i = 0; i < x.length; i++) {
+    const inp = x[i], out = b0 * inp + z1;
+    z1 = b1 * inp - a1 * out + z2;
+    z2 = b2 * inp - a2 * out;
+    x[i] = out;
+  }
+}
+
+/* ───────────────────────── LUFS (ITU-R BS.1770) ───────────────────────── */
+function kWeight(ch, sr) {
+  const y = Float32Array.from(ch);
+  applyBq(y, bqShelf(sr, 1681.97, 3.9998, true, 0.70717));
+  applyBq(y, bqHighpass(sr, 38.135, 0.50033));
+  return y;
+}
+function measureLufs(L, R, sr) {
+  if (L.length < sr * 0.5) return -Infinity;
+  const kl = kWeight(L, sr), kr = kWeight(R, sr);
+  const block = Math.floor(sr * 0.4), hop = Math.floor(sr * 0.1);
+  const blocks = [];
+  for (let s = 0; s + block <= kl.length; s += hop) {
+    let p = 0;
+    for (let i = s; i < s + block; i++) p += kl[i] * kl[i] + kr[i] * kr[i];
+    blocks.push(-0.691 + 10 * Math.log10(p / block + 1e-20));
+  }
+  if (!blocks.length) return -Infinity;
+  const above = blocks.filter(b => b > -70);
+  if (!above.length) return -Infinity;
+  const mean = arr => arr.reduce((a, b) => a + Math.pow(10, (b + 0.691) / 10), 0) / arr.length;
+  const relGate = -0.691 + 10 * Math.log10(mean(above)) - 10;
+  const gated = above.filter(b => b > relGate);
+  if (!gated.length) return -Infinity;
+  return -0.691 + 10 * Math.log10(mean(gated));
+}
+function gainToLufs(L, R, sr, target) {
+  const cur = measureLufs(L, R, sr);
+  if (!isFinite(cur)) return 0;
+  const db = Math.max(-40, Math.min(40, target - cur)), g = Math.pow(10, db / 20);
+  for (let i = 0; i < L.length; i++) { L[i] *= g; R[i] *= g; }
+  return db;
+}
+
+/* ───────────────────────── 컴프레서 / 디에서 / 덕킹 / 리미터 ───────────────────────── */
+function compress(L, R, sr, thrDb, ratio, atkMs, relMs) {
+  const atk = Math.exp(-1 / (sr * atkMs / 1000)), rel = Math.exp(-1 / (sr * relMs / 1000));
+  let env = 0;
+  for (let i = 0; i < L.length; i++) {
+    const x = Math.max(Math.abs(L[i]), Math.abs(R[i]));
+    env = (x > env ? atk : rel) * env + (1 - (x > env ? atk : rel)) * x;
+    const envDb = 20 * Math.log10(env + 1e-12);
+    if (envDb > thrDb) {
+      const g = Math.pow(10, (thrDb - envDb) * (1 - 1 / ratio) / 20);
+      L[i] *= g; R[i] *= g;
+    }
+  }
+}
+function blockEnvelope(mono, sr, atkMs, relMs) { // 32샘플 블록 피크 + 원폴 (느린 게인 곡선용)
+  const B = 32, nb = Math.ceil(mono.length / B), bsr = sr / B;
+  const atk = Math.exp(-1 / Math.max(bsr * atkMs / 1000, 1e-3));
+  const rel = Math.exp(-1 / Math.max(bsr * relMs / 1000, 1e-3));
+  const env = new Float32Array(nb);
+  let prev = 0;
+  for (let b = 0; b < nb; b++) {
+    let m = 0;
+    for (let i = b * B; i < Math.min((b + 1) * B, mono.length); i++) { const a = Math.abs(mono[i]); if (a > m) m = a; }
+    prev = (m > prev ? atk : rel) * prev + (1 - (m > prev ? atk : rel)) * m;
+    env[b] = prev;
+  }
+  return { env, B };
+}
+function deess(L, R, sr) { // 4.5~9kHz만 동적으로 누른다
+  const lo = 4500, hi = Math.min(9000, sr * 0.45);
+  const bandOf = ch => {
+    const a = Float32Array.from(ch), b = Float32Array.from(ch);
+    applyBq(a, bqLowpass(sr, hi)); applyBq(a, bqLowpass(sr, hi));
+    applyBq(a, bqHighpass(sr, lo)); applyBq(a, bqHighpass(sr, lo));
+    void b; return a;
+  };
+  const bl = bandOf(L), br = bandOf(R);
+  const mono = new Float32Array(L.length);
+  for (let i = 0; i < L.length; i++) mono[i] = (bl[i] + br[i]) / 2;
+  const { env, B } = blockEnvelope(mono, sr, 1.5, 60);
+  let rms = 0;
+  for (let i = 0; i < mono.length; i++) rms += mono[i] * mono[i];
+  const thrDb = 20 * Math.log10(Math.sqrt(rms / mono.length) + 1e-12) + 8;
+  let maxRed = 0;
+  for (let i = 0; i < L.length; i++) {
+    const envDb = 20 * Math.log10(env[(i / B) | 0] + 1e-12);
+    const red = Math.min(Math.max(envDb - thrDb, 0) * (1 - 1 / 3), 8);
+    if (red > maxRed) maxRed = red;
+    const g = Math.pow(10, -red / 20);
+    L[i] += bl[i] * (g - 1); R[i] += br[i] * (g - 1);
+  }
+  return maxRed;
+}
+function duckingGain(triggerMono, sr, depth, atkMs = 5, relMs = 120) {
+  const { env, B } = blockEnvelope(triggerMono, sr, atkMs, relMs);
+  const sorted = Float32Array.from(env).sort();
+  const peak = (sorted[Math.floor(sorted.length * 0.995)] || 0) + 1e-12;
+  return { env, B, peak, depth };
+}
+function applyDucking(L, R, dg) {
+  for (let i = 0; i < L.length; i++) {
+    const e = Math.min(dg.env[(i / dg.B) | 0] / dg.peak, 1);
+    const g = 1 - dg.depth * e;
+    L[i] *= g; R[i] *= g;
+  }
+}
+function limiter(L, R, sr, ceilDb = -1) { // 5ms 룩어헤드 피크 리미터
+  const ceil = Math.pow(10, ceilDb / 20), look = Math.max(1, Math.floor(sr * 0.005));
+  const n = L.length, nb = Math.ceil(n / look), blockMin = new Float32Array(nb).fill(1);
+  for (let i = 0; i < n; i++) {
+    const a = Math.max(Math.abs(L[i]), Math.abs(R[i]));
+    const d = a > ceil ? ceil / a : 1, b = (i / look) | 0;
+    if (d < blockMin[b]) blockMin[b] = d;
+  }
+  const rel = Math.exp(-1 / (sr * 0.05));
+  let g = 1;
+  for (let i = 0; i < n; i++) {
+    const b = (i / look) | 0;
+    const target = Math.min(blockMin[b], b + 1 < nb ? blockMin[b + 1] : 1);
+    g = target < g ? target : rel * g + (1 - rel) * target; // 어택 즉시, 릴리즈 50ms
+    L[i] *= g; R[i] *= g;
+  }
+}
+
+/* ───────────────────────── 분석: 분류 폴백 / 킥 기음 ───────────────────────── */
+function bandPower(mono, sr, kind, f0) {
+  const y = Float32Array.from(mono.subarray(0, Math.min(mono.length, sr * 30)));
+  applyBq(y, kind === "lp" ? bqLowpass(sr, f0) : bqHighpass(sr, f0));
+  let p = 0;
+  for (let i = 0; i < y.length; i++) p += y[i] * y[i];
+  return p / y.length;
+}
+function classifyByFeatures(mono, sr) {
+  const seg = mono.subarray(0, Math.min(mono.length, sr * 30));
+  let p = 0, peak = 0;
+  for (let i = 0; i < seg.length; i++) { p += seg[i] * seg[i]; const a = Math.abs(seg[i]); if (a > peak) peak = a; }
+  const total = p / seg.length + 1e-20;
+  const crest = peak / (Math.sqrt(total) + 1e-12), perc = Math.min(crest / 20, 1);
+  const lowRatio = bandPower(mono, sr, "lp", 200) / total;
+  const highRatio = bandPower(mono, sr, "hp", 4000) / total;
+  if (lowRatio > 0.75) return perc > 0.55 ? "kick" : "bass";
+  if (highRatio > 0.5 && perc > 0.5) return "hihat";
+  if (perc > 0.6) return "percussion";
+  return "other";
+}
+function goertzelPower(mono, sr, freq) {
+  const n = Math.min(mono.length, sr * 20);
+  const w = 2 * Math.PI * freq / sr, c = 2 * Math.cos(w);
+  let s0 = 0, s1 = 0, s2 = 0;
+  for (let i = 0; i < n; i++) { s0 = mono[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+  return s1 * s1 + s2 * s2 - c * s1 * s2;
+}
+function findKickF0(mono, sr) {
+  let best = null, bestP = -1;
+  for (let f = 30; f <= 120; f += 2) {
+    const p = goertzelPower(mono, sr, f);
+    if (p > bestP) { bestP = p; best = f; }
+  }
+  return best;
+}
+
+/* ───────────────────────── 리버브 (Convolver, OfflineAudioContext) ───────────────────────── */
+async function reverbRender(sendL, sendR, sr) {
+  const irSec = 2.2, irLen = Math.floor(sr * irSec);
+  const ir = [new Float32Array(irLen), new Float32Array(irLen)];
+  for (let ch = 0; ch < 2; ch++) {
+    for (let i = 0; i < irLen; i++)
+      ir[ch][i] = (Math.random() * 2 - 1) * Math.exp(-3.2 * i / irLen);
+    applyBq(ir[ch], bqLowpass(sr, 6000));    // 어두운 꼬리
+    applyBq(ir[ch], bqHighpass(sr, 250));    // 저음 머드 방지
+  }
+  const ctx = new OfflineAudioContext(2, sendL.length + irLen, sr);
+  const srcBuf = ctx.createBuffer(2, sendL.length, sr);
+  srcBuf.copyToChannel(sendL, 0); srcBuf.copyToChannel(sendR, 1);
+  const irBuf = ctx.createBuffer(2, irLen, sr);
+  irBuf.copyToChannel(ir[0], 0); irBuf.copyToChannel(ir[1], 1);
+  const src = ctx.createBufferSource(); src.buffer = srcBuf;
+  const conv = ctx.createConvolver(); conv.normalize = true; conv.buffer = irBuf;
+  src.connect(conv).connect(ctx.destination); src.start();
+  return await ctx.startRendering();
+}
+
+/* ───────────────────────── WAV 인코딩 (16bit PCM) ───────────────────────── */
+function encodeWav(L, R, sr) {
+  const n = L.length, data = new DataView(new ArrayBuffer(44 + n * 4));
+  const wstr = (o, s) => { for (let i = 0; i < s.length; i++) data.setUint8(o + i, s.charCodeAt(i)); };
+  wstr(0, "RIFF"); data.setUint32(4, 36 + n * 4, true); wstr(8, "WAVE");
+  wstr(12, "fmt "); data.setUint32(16, 16, true); data.setUint16(20, 1, true); data.setUint16(22, 2, true);
+  data.setUint32(24, sr, true); data.setUint32(28, sr * 4, true); data.setUint16(32, 4, true); data.setUint16(34, 16, true);
+  wstr(36, "data"); data.setUint32(40, n * 4, true);
+  for (let i = 0; i < n; i++) {
+    data.setInt16(44 + i * 4, Math.max(-32768, Math.min(32767, Math.round(L[i] * 32767))), true);
+    data.setInt16(46 + i * 4, Math.max(-32768, Math.min(32767, Math.round(R[i] * 32767))), true);
+  }
+  return new Blob([data.buffer], { type: "audio/wav" });
+}
+
+/* ───────────────────────── UI ───────────────────────── */
+const drop = document.getElementById("drop"), fileInput = document.getElementById("fileInput");
+const trackTable = document.getElementById("trackTable"), trackBody = document.getElementById("trackBody");
+const mixBtn = document.getElementById("mixBtn"), clearBtn = document.getElementById("clearBtn");
+const statusEl = document.getElementById("status"), resultEl = document.getElementById("result");
+let stems = []; // {name, role, L, R, sr, inputLufs}
+let audioCtx = null;
+
+const tick = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+async function setStatus(msg) { statusEl.textContent = msg; await tick(); }
+
+drop.addEventListener("click", () => fileInput.click());
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); addFiles(e.dataTransfer.files); });
+fileInput.addEventListener("change", () => addFiles(fileInput.files));
+clearBtn.addEventListener("click", () => { stems = []; renderTable(); resultEl.style.display = "none"; statusEl.textContent = ""; });
+
+async function addFiles(fileList) {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  for (const file of fileList) {
+    try {
+      await setStatus(`디코딩 중: ${file.name} ...`);
+      const buf = await audioCtx.decodeAudioData(await file.arrayBuffer());
+      const L = Float32Array.from(buf.getChannelData(0));
+      const R = Float32Array.from(buf.numberOfChannels > 1 ? buf.getChannelData(1) : buf.getChannelData(0));
+      const mono = new Float32Array(L.length);
+      for (let i = 0; i < L.length; i++) mono[i] = (L[i] + R[i]) / 2;
+      let role = classifyByName(file.name);
+      const by = role ? "파일명" : "스펙트럼";
+      if (!role) role = classifyByFeatures(mono, buf.sampleRate);
+      const inputLufs = measureLufs(L, R, buf.sampleRate);
+      if (!isFinite(inputLufs)) { await setStatus(`건너뜀 (무음/너무 짧음): ${file.name}`); continue; }
+      stems.push({ name: file.name, role, by, L, R, sr: buf.sampleRate, inputLufs });
+    } catch (err) {
+      await setStatus(`디코딩 실패: ${file.name} (${err.message || err})`);
+    }
+  }
+  renderTable();
+  await setStatus(stems.length ? `${stems.length}개 트랙 준비 완료 — 악기 인식이 틀렸으면 표에서 고쳐주세요.` : "");
+}
+
+function renderTable() {
+  trackBody.innerHTML = "";
+  trackTable.style.display = stems.length ? "" : "none";
+  clearBtn.style.display = stems.length ? "" : "none";
+  mixBtn.disabled = !stems.length;
+  stems.forEach((s, idx) => {
+    const tr = document.createElement("tr");
+    const sel = document.createElement("select");
+    for (const [key, p] of Object.entries(PROFILES)) {
+      const opt = document.createElement("option");
+      opt.value = key; opt.textContent = p.label;
+      if (key === s.role) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    sel.addEventListener("change", () => { stems[idx].role = sel.value; renderTable(); });
+    const p = PROFILES[s.role];
+    const td1 = document.createElement("td"); td1.className = "fname"; td1.title = s.name; td1.textContent = s.name;
+    const td2 = document.createElement("td"); td2.appendChild(sel);
+    const small = document.createElement("div"); small.className = "meta"; small.textContent = `(${s.by} 인식)`;
+    td2.appendChild(small);
+    const td3 = document.createElement("td");
+    td3.innerHTML = `<span class="pill">목표 ${(BALANCE_REF_LUFS + p.offset).toFixed(0)} LUFS</span>` +
+                    `<span class="pill">리버브 ${(p.send * 100).toFixed(0)}%</span>` +
+                    `<span class="pill">컴프 ${p.comp[1]}:1</span>`;
+    tr.append(td1, td2, td3);
+    trackBody.appendChild(tr);
+  });
+}
+
+function assignPans() {
+  const groups = {};
+  stems.forEach(s => (groups[s.role] = groups[s.role] || []).push(s));
+  for (const [role, list] of Object.entries(groups)) {
+    const p = PROFILES[role];
+    if (list.length === 1 || p.spread <= 0) { list.forEach(s => s.pan = p.pan); continue; }
+    list.forEach((s, i) => {
+      const pos = -p.spread / 2 + p.spread * i / (list.length - 1);
+      s.pan = Math.max(-1, Math.min(1, pos + p.pan * 0.2));
+    });
+  }
+}
+
+mixBtn.addEventListener("click", async () => {
+  mixBtn.disabled = true;
+  resultEl.style.display = "none";
+  const notes = [];
+  try {
+    const sr = stems[0].sr;
+    const length = Math.max(...stems.map(s => s.L.length));
+    const targetLufs = parseFloat(document.getElementById("targetLufs").value);
+    assignPans();
+
+    // 곡 컨텍스트: 킥 기음, 보컬 유무
+    const kick = stems.find(s => s.role === "kick");
+    const hasVocal = stems.some(s => s.role === "vocal");
+    let kickF0 = null;
+    if (kick) {
+      const mono = new Float32Array(kick.L.length);
+      for (let i = 0; i < mono.length; i++) mono[i] = (kick.L[i] + kick.R[i]) / 2;
+      kickF0 = findKickF0(mono, sr);
+      if (kickF0) notes.push(`킥 기음 ${kickF0}Hz 감지 → 베이스 마스킹 카빙 -2.5dB`);
+    }
+
+    const mixL = new Float32Array(length), mixR = new Float32Array(length);
+    const sendL = new Float32Array(length), sendR = new Float32Array(length);
+    const processed = [];
+
+    for (const s of stems) {
+      const p = PROFILES[s.role];
+      await setStatus(`트랙 처리 중: ${s.name} (${p.label}) ...`);
+      const L = Float32Array.from(s.L), R = Float32Array.from(s.R);
+
+      gainToLufs(L, R, sr, PRE_CHAIN_LUFS);                       // 게인 스테이징
+      const chain = [bqHighpass(sr, p.hpf)];
+      for (const [f, g, q] of p.eq) chain.push(bqPeak(sr, f, g, q));
+      if (p.hs) chain.push(bqShelf(sr, p.hs[0], p.hs[1], true));
+      for (const co of chain) { applyBq(L, co); applyBq(R, co); }  // EQ
+      compress(L, R, sr, ...p.comp);                               // 컴프
+
+      if (s.role === "vocal" || s.role === "backing_vocal") {      // 디에서
+        const red = deess(L, R, sr);
+        if (red > 0.5) notes.push(`${s.name}: 디에서 최대 -${red.toFixed(1)}dB`);
+      }
+      gainToLufs(L, R, sr, BALANCE_REF_LUFS + p.offset);           // 밸런스
+
+      if (s.role === "bass" && kickF0) {                            // 마스킹 카빙
+        const co = bqPeak(sr, kickF0, -2.5, 1.4); applyBq(L, co); applyBq(R, co);
+      }
+      if (VOCAL_CARVE_ROLES.has(s.role) && hasVocal) {              // 보컬 자리 양보
+        const co = bqPeak(sr, 3000, -1.5, 0.8); applyBq(L, co); applyBq(R, co);
+        notes.push(`${s.name}: 보컬 자리 양보 3kHz -1.5dB`);
+      }
+      const theta = (Math.max(-1, Math.min(1, s.pan)) + 1) * Math.PI / 4; // 등파워 패닝
+      const gl = Math.cos(theta) * Math.SQRT2, gr = Math.sin(theta) * Math.SQRT2;
+      for (let i = 0; i < L.length; i++) { L[i] *= gl; R[i] *= gr; }
+      processed.push({ s, L, R });
+    }
+
+    // 사이드체인 덕킹: 킥→베이스, 보컬→패드/스트링
+    const trigger = roles => {
+      const list = processed.filter(x => roles.includes(x.s.role));
+      if (!list.length) return null;
+      const t = new Float32Array(length);
+      for (const x of list) for (let i = 0; i < x.L.length; i++) t[i] += (x.L[i] + x.R[i]) / 2;
+      return t;
+    };
+    const kt = trigger(["kick"]);
+    if (kt && processed.some(x => x.s.role === "bass")) {
+      await setStatus("덕킹: 킥 → 베이스 ...");
+      const dg = duckingGain(kt, sr, 0.3);
+      for (const x of processed) if (x.s.role === "bass") applyDucking(x.L, x.R, dg);
+      notes.push("사이드체인 덕킹: 킥이 칠 때 베이스 최대 -3dB");
+    }
+    const vt = trigger(["vocal"]);
+    if (vt && processed.some(x => VOCAL_DUCK_ROLES.has(x.s.role))) {
+      const dg = duckingGain(vt, sr, 0.2, 15, 250);
+      for (const x of processed) if (VOCAL_DUCK_ROLES.has(x.s.role)) applyDucking(x.L, x.R, dg);
+      notes.push("사이드체인 덕킹: 보컬이 나올 때 패드/스트링 최대 -2dB");
+    }
+
+    // 합산 + 리버브 센드
+    for (const x of processed) {
+      const send = PROFILES[x.s.role].send;
+      for (let i = 0; i < x.L.length; i++) {
+        mixL[i] += x.L[i]; mixR[i] += x.R[i];
+        sendL[i] += x.L[i] * send; sendR[i] += x.R[i] * send;
+      }
+    }
+    await setStatus("리버브 버스 렌더링 중...");
+    const rv = await reverbRender(sendL, sendR, sr);
+    const rl = rv.getChannelData(0), rr = rv.getChannelData(1);
+    for (let i = 0; i < length; i++) { mixL[i] += rl[i] * 0.6; mixR[i] += rr[i] * 0.6; }
+
+    // 믹스 버스
+    await setStatus("믹스 버스: 글루 컴프 → 에어 → 라우드니스 → 리미터 ...");
+    compress(mixL, mixR, sr, -14, 2, 30, 200);
+    const air = bqShelf(sr, 11000, 1, true); applyBq(mixL, air); applyBq(mixR, air);
+    gainToLufs(mixL, mixR, sr, targetLufs);
+    limiter(mixL, mixR, sr, -1);
+    const post = measureLufs(mixL, mixR, sr);
+    if (isFinite(post) && post > targetLufs) {
+      const g = Math.pow(10, (targetLufs - post) / 20);
+      for (let i = 0; i < length; i++) { mixL[i] *= g; mixR[i] *= g; }
+    }
+    const finalLufs = measureLufs(mixL, mixR, sr);
+
+    // 결과 출력
+    const blob = encodeWav(mixL, mixR, sr);
+    const url = URL.createObjectURL(blob);
+    document.getElementById("player").src = url;
+    const dl = document.getElementById("download");
+    dl.href = url; dl.download = "automix_mix.wav";
+    document.getElementById("report").innerHTML = buildReport(finalLufs, targetLufs, notes);
+    resultEl.style.display = "";
+    await setStatus(`믹스 완료 — ${finalLufs.toFixed(1)} LUFS / ${sr}Hz / 16bit WAV`);
+  } catch (err) {
+    console.error(err);
+    await setStatus(`오류: ${err.message || err}`);
+  } finally {
+    mixBtn.disabled = false;
+  }
+});
+
+function buildReport(finalLufs, targetLufs, notes) {
+  const rows = stems.map(s => {
+    const p = PROFILES[s.role];
+    const pan = Math.abs(s.pan) < 0.05 ? "C" : (s.pan < 0 ? `L${Math.round(-s.pan * 100)}` : `R${Math.round(s.pan * 100)}`);
+    return `<li><b>${s.name}</b> — ${p.label} · 입력 ${s.inputLufs.toFixed(1)} → 목표 ${(BALANCE_REF_LUFS + p.offset).toFixed(0)} LUFS · 팬 ${pan} · 리버브 ${(p.send * 100).toFixed(0)}%</li>`;
+  }).join("");
+  const noteItems = notes.length ? notes.map(n => `<li class="note">${n}</li>`).join("") : "<li>(해당 없음)</li>";
+  return `<h3>트랙별 처리</h3><ul>${rows}</ul>
+          <h3>소스 반응형 처리</h3><ul>${noteItems}</ul>
+          <h3>믹스 버스</h3><ul>
+            <li>글루 컴프 2:1 (thr -14dB) → 에어 쉘프 11kHz +1dB</li>
+            <li>라우드니스 ${targetLufs} LUFS 정렬 → 리미터 -1dBFS → 최종 ${finalLufs.toFixed(1)} LUFS</li>
+          </ul>`;
+}
+</script>
+</body>
+</html>

@@ -42,9 +42,13 @@ python3 -m automix ./스템폴더 -o mix.wav --reference 레퍼런스곡.wav
 
 ```
 스템 로드 → 악기 분류 → 게인 스테이징(-20 LUFS)
+  → 공진 감지 EQ (트랙에서 실제로 튀는 좁은 대역을 찾아서 컷)
   → 악기별 체인 (HPF → EQ → 컴프)
+  → 디에서 (보컬 치찰음 4.5~9kHz 동적 억제)
   → 자동 밸런스 (악기별 목표 라우드니스)
+  → 마스킹 카빙 (킥 기음 주파수를 찾아 베이스가 비켜줌, 보컬 있으면 미드 악기 3kHz 양보)
   → 자동 패닝 (같은 악기군은 좌우 대칭 배치)
+  → 사이드체인 덕킹 (킥→베이스 -3dB, 보컬→패드/스트링 -2dB)
   → 공용 리버브 버스 (공간감)
   → 믹스 버스 (글루 컴프 2:1 → 에어 쉘프 → 리미터 -1dBFS)
   → (선택) matchering 레퍼런스 마스터링
@@ -52,6 +56,26 @@ python3 -m automix ./스템폴더 -o mix.wav --reference 레퍼런스곡.wav
 
 악기별 레시피는 `automix/chains.py`의 `PROFILES`에 있습니다.
 수치를 바꾸면 바로 믹스 성향이 바뀝니다 (예: 보컬 리버브 양, 킥 어택 부스트).
+소스를 분석해서 반응하는 처리(공진/카빙/디에서/덕킹)는 `analysis.py`, `dynamics.py`에 있습니다.
+
+## 웹 UI (브라우저 버전)
+
+`mixer/index.html`을 브라우저로 열면 드래그&드롭으로 쓸 수 있는 웹 버전이 있습니다.
+같은 엔진을 JavaScript로 포팅한 것으로, 업로드 없이 전부 브라우저 안에서 처리됩니다.
+GitHub Pages 배포 시 `https://crossnam-coding.github.io/Ros-Code-Project/mixer/`로 접속.
+
+파이썬 버전과의 차이: 공진 감지 EQ와 matchering 레퍼런스 마스터링은 파이썬 전용,
+출력이 16bit WAV(파이썬은 24bit)입니다. LUFS 측정은 양쪽 다 ITU-R BS.1770 기준이며
+pyloudnorm과 0.1dB 이내로 교차 검증되어 있습니다.
+
+## 참고한 믹싱 지식
+
+레시피와 처리 순서는 업계 표준 자료들의 공통 내용을 규칙으로 옮긴 것입니다:
+
+- Mike Senior, *Mixing Secrets for the Small Studio* — 악기별 EQ 출발점, 머드 컷, 보컬 체인
+- Bobby Owsinski, *The Mixing Engineer's Handbook* — 밸런스/패닝/공간 배치 원칙
+- ITU-R BS.1770 — 라우드니스(LUFS) 측정 표준
+- Intelligent music production 연구 (Reiss 등, AES/[dl4am 튜토리얼](https://dl4am.github.io/tutorial/)) — 마스킹 카빙, 자동 밸런스 등 자동 믹싱 연구
 
 ## 테스트
 
