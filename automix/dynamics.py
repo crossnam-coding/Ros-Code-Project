@@ -50,6 +50,8 @@ def deess(
     """
     nyq = sr / 2.0
     hi = min(band[1], nyq * 0.95)
+    if hi <= band[0] + 200:  # 샘플레이트가 너무 낮으면 치찰음 대역이 없음 → 건너뜀
+        return audio, 0.0
     sos = butter(4, [band[0] / nyq, hi / nyq], btype="band", output="sos")
     sib = sosfilt(sos, audio, axis=0)
 
