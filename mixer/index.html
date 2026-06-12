@@ -135,8 +135,8 @@ const NAME_RULES = [
   [/overhead|\boh\b|cymbal|ride|crash|room|tom|drum|드럼|탐|심벌/i, "drums"],
   [/perc|shaker|tamb|conga|bongo|cajon|퍼커션|쉐이커/i, "percussion"],
   [/(?<![a-z])bass|\bsub\b|808|베이스/i, "bass"],
-  [/guitar|gtr|\bgt\b|elec[ _-]?g|acoustic[ _-]?g|기타/i, "guitar"],
-  [/piano|pno|grand|rhodes|epiano|피아노/i, "piano"],
+  [/guitar|gtr|\bgt\b|\be\.?g\d*\b|elec[ _-]?g|acoustic[ _-]?g|기타/i, "guitar"],
+  [/piano|pno|grand|rhodes|epiano|\be\.?p\d*\b|피아노/i, "piano"],
   [/organ|keys|\bkey\b|clav|건반/i, "keys"],
   [/pad|패드/i, "pad"],
   [/synth|saw|pluck|arp|lead(?![ _-]?vo)|신스|리드/i, "synth"],
@@ -577,8 +577,9 @@ mixBtn.addEventListener("click", async () => {
     const dl = document.getElementById("download");
     dl.href = url; dl.download = "automix_mix.wav";
     document.getElementById("report").innerHTML = buildReport(finalLufs, targetLufs, notes);
-    resultEl.style.display = "";
+    resultEl.style.display = "block"; // ""로 두면 스타일시트의 display:none이 다시 적용됨
     await setStatus(`믹스 완료 — ${finalLufs.toFixed(1)} LUFS / ${sr}Hz / 16bit WAV`);
+    resultEl.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (err) {
     console.error(err);
     await setStatus(`오류: ${err.message || err}`);
