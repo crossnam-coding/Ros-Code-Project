@@ -35,8 +35,9 @@
   button.ghost { background: transparent; color: var(--dim); border: 1px solid var(--line);
                  border-radius: 10px; padding: 10px 16px; cursor: pointer; }
   #status { margin-top: 16px; color: var(--accent2); font-size: 14px; min-height: 20px; white-space: pre-wrap; }
-  #result { display: none; margin-top: 24px; background: var(--panel); border: 1px solid var(--line);
+  #result { margin-top: 24px; background: var(--panel); border: 1px solid var(--line);
             border-radius: 14px; padding: 20px; }
+  [hidden] { display: none !important; }
   #result audio { width: 100%; margin: 10px 0; }
   a.dl { display: inline-block; background: var(--accent2); color: #0c2410; font-weight: 700;
          border-radius: 10px; padding: 10px 22px; text-decoration: none; margin-top: 6px; }
@@ -52,7 +53,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>🎚️ automix<span class="badge">프로토타입</span></h1>
+  <h1>🎚️ automix<span class="badge">프로토타입 v0.3</span></h1>
   <p class="sub">
     멀티트랙(스템)을 끌어다 놓으면 브라우저 안에서 자동으로 믹스합니다 — 업로드 없음, 전부 내 컴퓨터에서 처리.<br>
     악기별 정석 EQ/컴프 체인 · LUFS 자동 밸런스 · 자동 패닝 · 리버브 공간감 · 킥→베이스 덕킹 · 보컬 디에서 · 마스킹 카빙
@@ -82,7 +83,7 @@
   </div>
   <div id="status"></div>
 
-  <div id="result">
+  <div id="result" hidden>
     <h3 style="margin-top:0">믹스 결과</h3>
     <audio id="player" controls></audio><br>
     <a class="dl" id="download" download="automix.wav">WAV 다운로드</a>
@@ -398,7 +399,7 @@ drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add(
 drop.addEventListener("dragleave", () => drop.classList.remove("over"));
 drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); addFiles(e.dataTransfer.files); });
 fileInput.addEventListener("change", () => addFiles(fileInput.files));
-clearBtn.addEventListener("click", () => { stems = []; renderTable(); resultEl.style.display = "none"; statusEl.textContent = ""; });
+clearBtn.addEventListener("click", () => { stems = []; renderTable(); resultEl.hidden = true; statusEl.textContent = ""; });
 
 async function addFiles(fileList) {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -468,7 +469,7 @@ function assignPans() {
 
 mixBtn.addEventListener("click", async () => {
   mixBtn.disabled = true;
-  resultEl.style.display = "none";
+  resultEl.hidden = true;
   const notes = [];
   try {
     const sr = stems[0].sr;
@@ -577,7 +578,7 @@ mixBtn.addEventListener("click", async () => {
     const dl = document.getElementById("download");
     dl.href = url; dl.download = "automix_mix.wav";
     document.getElementById("report").innerHTML = buildReport(finalLufs, targetLufs, notes);
-    resultEl.style.display = "block"; // ""로 두면 스타일시트의 display:none이 다시 적용됨
+    resultEl.hidden = false;
     await setStatus(`믹스 완료 — ${finalLufs.toFixed(1)} LUFS / ${sr}Hz / 16bit WAV`);
     resultEl.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (err) {
