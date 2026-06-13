@@ -4,148 +4,175 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <meta name="theme-color" content="#ff5ea0"/>
-<title>BOOTY BUMP! 엉덩이 팡팡 💖</title>
+<title>BOOTY BUMP! 맨해튼 엉덩이 헌터 💖</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Jua&display=swap" rel="stylesheet">
 <style>
 :root{
   --pink:#ff5ea0; --pink2:#ff90c2; --blue:#39c5ff; --yellow:#ffd93d;
-  --purple:#9b5de5; --ink:#241b2e; --cream:#fff4e6; --green:#2ecc71;
-  --outline:4px;
+  --purple:#9b5de5; --ink:#241b2e; --green:#2ecc71;
+  --skin:#ffd2b3; --nail:#ff3f7e; --outline:4px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;font-family:'Jua','Apple SD Gothic Neo',sans-serif;color:var(--ink);user-select:none;-webkit-user-select:none}
-body{position:fixed;inset:0;background:#ffe3f1}
+body{position:fixed;inset:0;background:#1b1030}
 #game{position:absolute;inset:0;overflow:hidden}
 .screen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center}
 .screen.active{display:flex}
-
-/* ---------- comic helpers ---------- */
 .comic{font-family:'Luckiest Guy','Jua',cursive;letter-spacing:1px}
-.stroke{
-  -webkit-text-stroke: 2px var(--ink);
-  paint-order: stroke fill;
-  text-shadow: 3px 3px 0 rgba(0,0,0,.18);
-}
-.btn{
-  font-family:'Jua',sans-serif; font-size:20px; color:#fff;
-  border:var(--outline) solid var(--ink); border-radius:40px;
-  padding:14px 30px; cursor:pointer; position:relative;
-  box-shadow:0 6px 0 var(--ink); transition:transform .07s, box-shadow .07s;
-  background:var(--pink);
-}
+.stroke{-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 rgba(0,0,0,.18)}
+.btn{font-family:'Jua',sans-serif;font-size:20px;color:#fff;border:var(--outline) solid var(--ink);
+  border-radius:40px;padding:14px 30px;cursor:pointer;position:relative;
+  box-shadow:0 6px 0 var(--ink);transition:transform .07s,box-shadow .07s;background:var(--pink)}
 .btn:active{transform:translateY(4px);box-shadow:0 2px 0 var(--ink)}
 .btn.blue{background:var(--blue)} .btn.yellow{background:var(--yellow);color:var(--ink)}
 .btn.purple{background:var(--purple)} .btn.gray{background:#b9a9c9}
 
 /* ---------- TITLE ---------- */
-#s-title{background:
-  radial-gradient(circle at 50% 120%, var(--pink2) 0%, var(--pink) 35%, var(--purple) 100%);
-}
-#s-title .rays{position:absolute;inset:-50%;background:
-  conic-gradient(from 0deg, rgba(255,255,255,.18) 0 12deg, transparent 12deg 24deg);
-  animation:spin 18s linear infinite;pointer-events:none}
+#s-title{background:radial-gradient(circle at 50% 120%, var(--pink2) 0%, var(--pink) 35%, var(--purple) 100%)}
+#s-title .rays{position:absolute;inset:-50%;background:conic-gradient(from 0deg,rgba(255,255,255,.18) 0 12deg,transparent 12deg 24deg);animation:spin 18s linear infinite;pointer-events:none}
 @keyframes spin{to{transform:rotate(360deg)}}
-.title-card{position:relative;z-index:2;text-align:center;padding:24px;display:flex;flex-direction:column;align-items:center;gap:14px}
-.logo{font-size:clamp(40px,12vw,84px);color:var(--yellow);line-height:.95;transform:rotate(-4deg)}
-.logo small{display:block;font-family:'Jua';font-size:clamp(22px,7vw,40px);color:#fff;-webkit-text-stroke:1.5px var(--ink);transform:rotate(2deg);margin-top:6px}
+.title-card{position:relative;z-index:2;text-align:center;padding:24px;display:flex;flex-direction:column;align-items:center;gap:13px}
+.logo{font-size:clamp(38px,11vw,78px);color:var(--yellow);line-height:.95;transform:rotate(-4deg)}
+.logo small{display:block;font-family:'Jua';font-size:clamp(18px,5.5vw,32px);color:#fff;-webkit-text-stroke:1.5px var(--ink);transform:rotate(2deg);margin-top:6px}
 .tag{background:#fff;border:var(--outline) solid var(--ink);border-radius:30px;padding:6px 16px;font-size:14px;box-shadow:0 4px 0 var(--ink);transform:rotate(-2deg)}
-.menu{display:flex;flex-direction:column;gap:14px;width:min(330px,86vw);margin-top:6px}
+.menu{display:flex;flex-direction:column;gap:13px;width:min(330px,86vw);margin-top:4px}
 .note{color:#fff;font-size:12px;opacity:.92;max-width:300px;line-height:1.5;text-align:center}
 .float{animation:float 2.2s ease-in-out infinite}
 @keyframes float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-12px) rotate(2deg)}}
 
 /* ---------- HUD ---------- */
-#hud{position:absolute;top:0;left:0;right:0;z-index:30;display:none;
-  padding:10px 12px;justify-content:space-between;align-items:flex-start;pointer-events:none}
+#hud{position:absolute;top:0;left:0;right:0;z-index:50;display:none;padding:10px 12px;justify-content:space-between;align-items:flex-start;pointer-events:none}
 #hud.show{display:flex}
-.pill{background:#fff;border:3px solid var(--ink);border-radius:20px;padding:5px 12px;
-  box-shadow:0 3px 0 var(--ink);font-size:16px;display:flex;align-items:center;gap:6px}
+.pill{background:#fff;border:3px solid var(--ink);border-radius:20px;padding:5px 12px;box-shadow:0 3px 0 var(--ink);font-size:16px;display:flex;align-items:center;gap:6px}
 .pill b{font-family:'Luckiest Guy',cursive;font-size:20px;color:var(--pink)}
 #timePill b{color:var(--blue)}
 #comboPill{background:var(--yellow);transition:transform .1s}
 #comboPill.bump{transform:scale(1.25) rotate(-4deg)}
 #hudRight{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
-#muteBtn,#quitBtn{pointer-events:auto;cursor:pointer;width:40px;height:40px;border-radius:50%;
-  border:3px solid var(--ink);background:#fff;box-shadow:0 3px 0 var(--ink);font-size:18px;display:flex;align-items:center;justify-content:center}
-.timebar{position:absolute;left:12px;right:12px;top:54px;height:10px;background:#fff;border:3px solid var(--ink);border-radius:10px;overflow:hidden;display:none;z-index:30}
+#muteBtn,#quitBtn{pointer-events:auto;cursor:pointer;width:40px;height:40px;border-radius:50%;border:3px solid var(--ink);background:#fff;box-shadow:0 3px 0 var(--ink);font-size:18px;display:flex;align-items:center;justify-content:center}
+.timebar{position:absolute;left:12px;right:12px;top:54px;height:10px;background:#fff;border:3px solid var(--ink);border-radius:10px;overflow:hidden;display:none;z-index:50}
 .timebar.show{display:block}
 .timebar>i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--green),var(--yellow),var(--pink));transition:width .2s linear}
 
-/* ---------- STREET ---------- */
-#s-street{overflow:hidden}
-#street-bg{position:absolute;inset:0;background:
-  linear-gradient(#9be7ff 0%, #cdf3ff 38%, #ffe8c2 38%, #ffd79e 55%, #c9c0d8 55%, #b3a9c6 100%);}
-.road{position:absolute;left:0;right:0;bottom:0;height:45%;
-  background:repeating-linear-gradient(90deg,#9a8fb0 0 60px,#8e83a6 60px 120px)}
-.road:before{content:"";position:absolute;top:18%;left:0;right:0;height:8px;
-  background:repeating-linear-gradient(90deg,var(--yellow) 0 40px,transparent 40px 80px)}
-#stage{position:absolute;inset:0;z-index:10}
+/* ---------- PLAY SCENE (first person) ---------- */
+#s-play{overflow:hidden}
+#scene{position:absolute;inset:0;overflow:hidden}
 
-/* a walking dude */
-.dude{position:absolute;cursor:pointer;will-change:transform,left;transform-origin:bottom center}
-.dude .bob{animation:bob .45s ease-in-out infinite}
-@keyframes bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-7px) rotate(1deg)}}
-.dude svg{display:block;filter:drop-shadow(3px 5px 0 rgba(0,0,0,.18))}
-.dude.vip svg{filter:drop-shadow(0 0 10px var(--yellow)) drop-shadow(3px 5px 0 rgba(0,0,0,.2))}
-.dude .crown{position:absolute;top:-6px;left:50%;transform:translateX(-50%);font-size:26px;animation:float 1.4s ease-in-out infinite;pointer-events:none}
-.dude .ban{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);font-size:40px;filter:drop-shadow(0 2px 0 #000);pointer-events:none}
-.dude .tag2{position:absolute;top:-16px;left:50%;transform:translateX(-50%) rotate(-6deg);background:#ff3b6b;color:#fff;border:3px solid var(--ink);border-radius:14px;padding:2px 8px;font-size:12px;white-space:nowrap;box-shadow:0 3px 0 var(--ink);pointer-events:none}
-.dude.caught .bob{animation:wiggle .4s ease}
-@keyframes wiggle{0%{transform:scale(1)}30%{transform:scale(1.15) rotate(-6deg)}60%{transform:scale(.95) rotate(5deg)}100%{transform:scale(1)}}
-.sparkle{position:absolute;font-size:14px;animation:spk 1.1s linear infinite;pointer-events:none}
-@keyframes spk{0%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.4)}}
+/* Manhattan backdrop */
+#bgStreet{position:absolute;inset:0;background:
+  linear-gradient(#22305e 0%,#3a3a78 16%,#8a5aa8 34%,#ff9e7a 50%,#ffc78f 56%,#9aa0c0 56%,#7e85ad 100%)}
+.skyline{position:absolute;left:0;right:0;top:34%;height:130px;z-index:1}
+.wall{position:absolute;top:0;height:56%;width:42%;z-index:2;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,.30) 0 4px, transparent 4px 26px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,.30) 0 4px, transparent 4px 22px),
+    linear-gradient(#6a6f95,#4b4f73);
+  background-size:auto, auto, auto;
+}
+.wall.left{left:0;transform:perspective(420px) rotateY(30deg);transform-origin:left center;border-right:3px solid var(--ink)}
+.wall.right{right:0;transform:perspective(420px) rotateY(-30deg);transform-origin:right center;border-left:3px solid var(--ink)}
+.wall i{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 12px,rgba(255,220,120,.0) 12px 13px);animation:wallmove 2.2s linear infinite}
+@keyframes wallmove{to{background-position-y:26px}}
+.floor{position:absolute;left:-50%;bottom:0;width:200%;height:46%;z-index:3;
+  background:#5b5f7e;transform:perspective(300px) rotateX(62deg);transform-origin:bottom center;overflow:hidden}
+.floor .road{position:absolute;left:35%;right:35%;top:0;bottom:0;background:#3f4360}
+.floor .lines{position:absolute;inset:-20% 0;background:
+   repeating-linear-gradient(0deg, rgba(255,255,255,.5) 0 16px, transparent 16px 70px);
+   left:48%;width:4%;animation:floor 0.9s linear infinite}
+.floor .cross{position:absolute;inset:-20% 0;background:
+   repeating-linear-gradient(0deg, rgba(255,255,255,.18) 0 10px, transparent 10px 80px);
+   animation:floor 0.9s linear infinite}
+@keyframes floor{to{transform:translateY(70px)}}
 
-/* the booty glow hint */
+/* AR background */
+#arVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#222;display:none;z-index:1}
+#ar-fallback{position:absolute;inset:0;display:none;z-index:1;background:linear-gradient(#ffd1e8,#c9b9ff 60%,#9b8fd0)}
+.scene-ar #bgStreet{display:none}
+.scene-ar #arVideo{display:block}
+.scene-ar.cam-off #arVideo{display:none}
+.scene-ar.cam-off #ar-fallback{display:block}
+
+/* the man ahead */
+#manLayer{position:absolute;inset:0;z-index:10}
+.man{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);transform-origin:bottom center;will-change:transform,bottom;cursor:pointer}
+.man-inner{animation:walkbob .5s ease-in-out infinite;transform-origin:bottom center}
+@keyframes walkbob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-6px) rotate(1deg)}}
+.man svg{display:block;filter:drop-shadow(4px 7px 0 rgba(0,0,0,.22))}
+.man.vip svg{filter:drop-shadow(0 0 12px var(--yellow)) drop-shadow(4px 7px 0 rgba(0,0,0,.22))}
+.man .butt-g{transform-origin:50% 62%}
+.man.startled .butt-g{animation:squish .42s ease}
+@keyframes squish{0%{transform:scaleY(1) scaleX(1)}28%{transform:scaleY(.66) scaleX(1.2)}60%{transform:scaleY(1.06) scaleX(.94)}100%{transform:scaleY(1)}}
+.man.startled .man-inner{animation:jump .5s ease}
+@keyframes jump{0%{transform:translateY(0)}26%{transform:translateY(-22px) rotate(-4deg)}55%{transform:translateY(-4px) rotate(3deg)}100%{transform:translateY(0)}}
+.man.caught .man-inner{animation:shake .4s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px) rotate(-3deg)}75%{transform:translateX(8px) rotate(3deg)}}
+.man.leave .man-inner{animation:none}
+.bubble{position:absolute;opacity:0;transition:opacity .12s;pointer-events:none;font-size:34px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.3))}
+.bubble.look{top:-4%;left:62%}
+.bubble.shock{top:-14%;left:50%;transform:translateX(-50%);font-size:48px}
+.bubble.angry{top:-10%;left:50%;transform:translateX(-50%);font-size:40px}
+.man.looking .bubble.look{opacity:1;animation:blink .5s steps(1) infinite}
+@keyframes blink{50%{opacity:.3}}
+.man.startled .bubble.shock{opacity:1;animation:pop .5s ease}
+.man.caught .bubble.angry{opacity:1;animation:pop .5s ease}
+@keyframes pop{0%{transform:translateX(-50%) scale(.3)}60%{transform:translateX(-50%) scale(1.3)}100%{transform:translateX(-50%) scale(1)}}
+.man .crown{position:absolute;top:-7%;left:50%;transform:translateX(-50%);font-size:30px;animation:float 1.4s ease-in-out infinite;pointer-events:none}
+
+/* booty glow hint */
 .booty-hot{animation:hotpulse 1s ease-in-out infinite}
-@keyframes hotpulse{0%,100%{filter:drop-shadow(3px 5px 0 rgba(0,0,0,.18))}50%{filter:drop-shadow(0 0 9px var(--pink)) drop-shadow(3px 5px 0 rgba(0,0,0,.18))}}
+@keyframes hotpulse{0%,100%{filter:drop-shadow(4px 7px 0 rgba(0,0,0,.22))}50%{filter:drop-shadow(0 0 12px var(--pink)) drop-shadow(4px 7px 0 rgba(0,0,0,.22))}}
 
-/* ---------- AR ---------- */
-#s-ar{background:#111}
-#arVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#222}
-#ar-fallback{position:absolute;inset:0;display:none;background:
-  linear-gradient(#ffd1e8,#c9b9ff 60%,#9b8fd0);}
-#ar-fallback.show{display:block}
-#ar-fallback .room{position:absolute;inset:0;background:
-  linear-gradient(transparent 64%, rgba(0,0,0,.12) 64%),
-  repeating-linear-gradient(90deg,rgba(255,255,255,.25) 0 2px,transparent 2px 70px)}
-#ar-stage{position:absolute;inset:0;z-index:10}
-#ar-msg{position:absolute;z-index:25;left:0;right:0;top:40%;text-align:center;color:#fff;font-size:22px;text-shadow:0 2px 8px #000;padding:20px;pointer-events:none}
-.scan{position:absolute;left:0;right:0;height:3px;background:rgba(57,197,255,.9);box-shadow:0 0 14px var(--blue);animation:scan 3s linear infinite;z-index:9;pointer-events:none;display:none}
-.scan.show{display:block}
-@keyframes scan{0%{top:8%}50%{top:88%}100%{top:8%}}
+/* excitement vignette */
+#vig{position:absolute;inset:0;z-index:20;pointer-events:none;box-shadow:inset 0 0 130px 30px rgba(255,90,160,0);transition:box-shadow .35s}
+#scene.excited #vig{box-shadow:inset 0 0 130px 50px rgba(255,90,160,.55)}
+
+/* MY HANDS (first person) */
+#hands{position:absolute;left:0;right:0;bottom:0;height:50%;z-index:30;pointer-events:none}
+.hand{position:absolute;bottom:-6%;width:48%;transition:transform .16s cubic-bezier(.3,1.5,.5,1)}
+.hand .hand-inner{display:block;transform-origin:bottom center}
+.hand.left{left:-3%;transform:rotate(15deg)}
+.hand.left .hand-inner{animation:handidleL 2.4s ease-in-out infinite}
+.hand.right{right:-3%;transform:scaleX(-1) rotate(15deg)}
+.hand.right .hand-inner{animation:handidleR 2.6s ease-in-out infinite}
+@keyframes handidleL{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-8px) rotate(-3deg)}}
+@keyframes handidleR{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-10px) rotate(3deg)}}
+.hand .pose-grab{opacity:0;transition:opacity .1s}
+.hand .pose-open{opacity:1;transition:opacity .1s}
+#hands.grabbing .hand.left{transform:translate(46%,-78%) rotate(-8deg) scale(1.12)}
+#hands.grabbing .hand.right{transform:translate(-46%,-78%) scaleX(-1) rotate(-8deg) scale(1.12)}
+#hands.grabbing .pose-open{opacity:0}
+#hands.grabbing .pose-grab{opacity:1}
+.hand svg{display:block;filter:drop-shadow(0 -3px 6px rgba(0,0,0,.3))}
+
+/* AR / scan / msg */
+.scan{position:absolute;left:0;right:0;height:3px;background:rgba(57,197,255,.9);box-shadow:0 0 14px var(--blue);animation:scanmv 3s linear infinite;z-index:8;pointer-events:none;display:none}
+.scene-ar .scan{display:block}
+@keyframes scanmv{0%{top:10%}50%{top:80%}100%{top:10%}}
+#ar-msg{position:absolute;z-index:40;left:0;right:0;top:38%;text-align:center;color:#fff;font-size:20px;text-shadow:0 2px 8px #000;padding:20px;pointer-events:none}
 
 /* floating comic FX */
-.fx{position:absolute;z-index:40;pointer-events:none;font-family:'Luckiest Guy',cursive;
-  -webkit-text-stroke:2px var(--ink);color:#fff;font-size:34px;transform:translate(-50%,-50%);white-space:nowrap}
-.fx.go{animation:fxpop .8s ease-out forwards}
-@keyframes fxpop{0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-12deg)}
-  25%{opacity:1;transform:translate(-50%,-50%) scale(1.25) rotate(6deg)}
-  100%{opacity:0;transform:translate(-50%,-160%) scale(1) rotate(-4deg)}}
-.heart{position:absolute;z-index:39;pointer-events:none;font-size:22px;will-change:transform,opacity}
+.fx{position:absolute;z-index:45;pointer-events:none;font-family:'Luckiest Guy',cursive;-webkit-text-stroke:2px var(--ink);color:#fff;font-size:34px;transform:translate(-50%,-50%);white-space:nowrap}
+.fx.go{animation:fxpop .85s ease-out forwards}
+@keyframes fxpop{0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-12deg)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.25) rotate(6deg)}100%{opacity:0;transform:translate(-50%,-170%) scale(1) rotate(-4deg)}}
+.heart{position:absolute;z-index:44;pointer-events:none;font-size:24px;will-change:transform,opacity}
 .heart.go{animation:heartfly 1s ease-out forwards}
-@keyframes heartfly{0%{opacity:1;transform:translate(0,0) scale(.6)}
-  100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.3)}}
-.burst{position:absolute;z-index:38;pointer-events:none;width:120px;height:120px;
-  transform:translate(-50%,-50%) scale(.2);opacity:0}
+@keyframes heartfly{0%{opacity:1;transform:translate(0,0) scale(.6)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.3)}}
+.burst{position:absolute;z-index:43;pointer-events:none;width:140px;height:140px;transform:translate(-50%,-50%) scale(.2);opacity:0}
 .burst.go{animation:burst .5s ease-out forwards}
-@keyframes burst{0%{opacity:1;transform:translate(-50%,-50%) scale(.2) rotate(0)}
-  100%{opacity:0;transform:translate(-50%,-50%) scale(1.4) rotate(40deg)}}
+@keyframes burst{0%{opacity:1;transform:translate(-50%,-50%) scale(.2) rotate(0)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.5) rotate(40deg)}}
 
 /* ---------- RESULT ---------- */
 #s-result{background:radial-gradient(circle at 50% 30%, var(--pink2),var(--purple))}
-.result-card{position:relative;z-index:2;background:#fff;border:var(--outline) solid var(--ink);
-  border-radius:26px;box-shadow:0 8px 0 var(--ink);padding:26px 22px;text-align:center;
-  width:min(340px,88vw);display:flex;flex-direction:column;gap:10px;animation:drop .5s cubic-bezier(.2,1.3,.5,1)}
+.result-card{position:relative;z-index:2;background:#fff;border:var(--outline) solid var(--ink);border-radius:26px;box-shadow:0 8px 0 var(--ink);padding:26px 22px;text-align:center;width:min(340px,88vw);display:flex;flex-direction:column;gap:10px;animation:drop .5s cubic-bezier(.2,1.3,.5,1)}
 @keyframes drop{0%{transform:translateY(-40px) scale(.8);opacity:0}100%{transform:none;opacity:1}}
 .result-card .rank{font-size:54px;line-height:1}
 .result-card .rankname{font-family:'Luckiest Guy',cursive;font-size:26px;color:var(--purple)}
 .result-card .big{font-family:'Luckiest Guy',cursive;font-size:48px;color:var(--pink)}
 .stats{display:flex;justify-content:center;gap:18px;font-size:14px;color:#555}
 .stats b{display:block;font-size:22px;color:var(--ink)}
-
-.center-tip{position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#fff;font-size:12px;opacity:.85;z-index:30;pointer-events:none;text-shadow:0 1px 4px rgba(0,0,0,.4)}
+.center-tip{position:absolute;bottom:13px;left:0;right:0;text-align:center;color:#fff;font-size:12px;opacity:.85;z-index:35;pointer-events:none;text-shadow:0 1px 4px rgba(0,0,0,.5)}
 </style>
 </head>
 <body>
@@ -156,34 +183,35 @@ body{position:fixed;inset:0;background:#ffe3f1}
     <div class="rays"></div>
     <div class="title-card">
       <div id="titleDude" class="float"></div>
-      <h1 class="logo comic stroke">BOOTY<br>BUMP!<small>엉덩이 팡팡 💖</small></h1>
-      <div class="tag">지나가는 꽃미남, 놓치지 마! 🍑</div>
+      <h1 class="logo comic stroke">BOOTY<br>BUMP!<small>맨해튼 엉덩이 헌터 💖</small></h1>
+      <div class="tag">1인칭 시점 · 내 손으로 직접 잡아요 ✋🍑</div>
       <div class="menu">
-        <button class="btn pink" id="playStreet">🚶 거리 모드 시작</button>
+        <button class="btn pink" id="playStreet">🗽 맨해튼 거리</button>
         <button class="btn blue" id="playAR">📸 AR 모드 (카메라)</button>
         <button class="btn yellow" id="howBtn">❓ 게임 방법</button>
       </div>
-      <p class="note">※ 등장하는 인물은 전부 100% 만화 캐릭터예요. 가볍게 웃으며 즐기는 코믹 게임입니다 😎</p>
+      <p class="note">※ 등장하는 남자는 전부 100% 만화 캐릭터예요. 가볍게 웃으며 즐기는 코믹 게임 😎</p>
     </div>
   </section>
 
-  <!-- ===== STREET ===== -->
-  <section id="s-street" class="screen">
-    <div id="street-bg">
-      <div class="road"></div>
+  <!-- ===== PLAY ===== -->
+  <section id="s-play" class="screen">
+    <div id="scene">
+      <div id="bgStreet">
+        <div class="skyline" id="skyline"></div>
+        <div class="wall left"><i></i></div>
+        <div class="wall right"><i></i></div>
+        <div class="floor"><div class="road"></div><div class="cross"></div><div class="lines"></div></div>
+      </div>
+      <video id="arVideo" autoplay playsinline muted></video>
+      <div id="ar-fallback"></div>
+      <div class="scan"></div>
+      <div id="manLayer"></div>
+      <div id="vig"></div>
+      <div id="hands"></div>
+      <div id="ar-msg"></div>
+      <div class="center-tip" id="playTip">앞에 꽃미남 발견! 뒤돌아볼 때 말고, 안 볼 때 <b>탭</b>해서 잡아요 ✋</div>
     </div>
-    <div id="stage"></div>
-    <div class="center-tip">지나가는 꽃미남을 <b>탭</b>해서 붙잡아요! ✋🍑</div>
-  </section>
-
-  <!-- ===== AR ===== -->
-  <section id="s-ar" class="screen">
-    <video id="arVideo" autoplay playsinline muted></video>
-    <div id="ar-fallback"><div class="room"></div></div>
-    <div class="scan" id="arScan"></div>
-    <div id="ar-stage"></div>
-    <div id="ar-msg"></div>
-    <div class="center-tip">화면에 나타난 꽃미남을 <b>탭</b>해서 붙잡아요! 📸💖</div>
   </section>
 
   <!-- ===== RESULT ===== -->
@@ -194,7 +222,7 @@ body{position:fixed;inset:0;background:#ffe3f1}
       <div class="big" id="finalScore">0</div>
       <div class="stats">
         <div>최고 콤보<b id="bestCombo">0</b></div>
-        <div>붙잡은 꽃미남<b id="caughtCount">0</b></div>
+        <div>잡은 꽃미남<b id="caughtCount">0</b></div>
       </div>
       <p id="resultMode" style="color:#888;font-size:13px"></p>
       <button class="btn pink" id="againBtn">🔁 다시 하기</button>
@@ -217,14 +245,14 @@ body{position:fixed;inset:0;background:#ffe3f1}
   <div class="timebar" id="timebar"><i id="timebarFill"></i></div>
 
   <!-- how-to modal -->
-  <section id="howModal" class="screen" style="background:rgba(0,0,0,.6);z-index:60">
+  <section id="howModal" class="screen" style="background:rgba(0,0,0,.6);z-index:70">
     <div class="result-card" style="gap:8px;text-align:left">
       <h2 class="comic" style="color:var(--purple);text-align:center;font-size:26px">게임 방법 📖</h2>
-      <p>🚶 <b>거리 모드</b> — 만화 거리를 지나가는 꽃미남을 <b>탭</b>! 엉덩이가 <b>팡!</b> 콤보를 쌓아 점수를 올려요.</p>
-      <p>👑 <b>황금 VIP</b> 는 점수 3배! 놓치지 마세요.</p>
-      <p>🚫 <b>"남친 있음"</b> 표시는 절대 탭 금지! 콤보가 끊겨요.</p>
-      <p>📸 <b>AR 모드</b> — 카메라 화면 위에 꽃미남이 나타나요. 사라지기 전에 탭해서 붙잡기!</p>
-      <p style="color:#999;font-size:12px">권한을 거부해도 만화 배경으로 즐길 수 있어요.</p>
+      <p>🗽 <b>1인칭 시점</b>으로 맨해튼을 걸어요. 화면 아래 <b>내 손</b>으로 직접 잡습니다.</p>
+      <p>🍑 앞에 꽃미남이 다가오면 <b>두근두근 💓</b>. 화면을 <b>탭</b>하면 손이 뻗어 엉덩이를 <b>팡!</b></p>
+      <p>👀 남자가 <b>뒤돌아볼 때(👀)</b> 잡으면 딱 걸려서 감점! 안 볼 때를 노리세요.</p>
+      <p>👑 황금 꽃미남은 점수 대박! (하지만 자주 돌아봐요 😜)</p>
+      <p>📸 <b>AR 모드</b> — 카메라 위에 내 손과 꽃미남이 나타나요. (권한 거부 시 만화 배경)</p>
       <button class="btn purple" id="howClose" style="margin-top:6px">알겠어! 👍</button>
     </div>
   </section>
@@ -236,97 +264,143 @@ body{position:fixed;inset:0;background:#ffe3f1}
 "use strict";
 const $=s=>document.querySelector(s);
 const game=$('#game'), hud=$('#hud'), timebar=$('#timebar'), timebarFill=$('#timebarFill');
-const screens={title:$('#s-title'),street:$('#s-street'),ar:$('#s-ar'),result:$('#s-result')};
+const scene=$('#scene'), manLayer=$('#manLayer'), handsEl=$('#hands'),
+      arVideo=$('#arVideo'), arMsg=$('#ar-msg');
+const screens={title:$('#s-title'),play:$('#s-play'),result:$('#s-result')};
 
-/* ---------------- sound (WebAudio, no assets) ---------------- */
+/* ---------------- sound ---------------- */
 let actx=null, muted=false;
 function AC(){ if(!actx){try{actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}} return actx; }
 function tone(freq,dur,type,vol,slideTo){
   if(muted)return; const c=AC(); if(!c)return;
   const o=c.createOscillator(), g=c.createGain();
   o.type=type||'sine'; o.frequency.setValueAtTime(freq,c.currentTime);
-  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, c.currentTime+dur);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,c.currentTime+dur);
   g.gain.setValueAtTime(vol||.18,c.currentTime); g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+dur);
   o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime+dur);
 }
 const SFX={
-  boing(){ tone(220,.18,'sine',.25,720); setTimeout(()=>tone(700,.12,'sine',.18,300),60); },
-  combo(n){ tone(380+Math.min(n,14)*40,.1,'triangle',.2); },
-  buzz(){ tone(150,.25,'sawtooth',.22,70); },
+  boing(){ tone(220,.18,'sine',.25,760); setTimeout(()=>tone(720,.12,'sine',.18,300),60); },
+  squeak(){ tone(900,.08,'square',.18,1400); },
+  combo(n){ tone(380+Math.min(n,14)*42,.1,'triangle',.2); },
+  buzz(){ tone(150,.28,'sawtooth',.22,70); },
   vip(){ [600,800,1000,1300].forEach((f,i)=>setTimeout(()=>tone(f,.12,'triangle',.2),i*70)); },
+  heart(){ tone(160,.12,'sine',.22,120); setTimeout(()=>tone(150,.14,'sine',.2,110),230); },
   win(){ [523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.18,'triangle',.2),i*120)); }
 };
 
-/* ---------------- cartoon hunk SVG (back view) ---------------- */
+/* ---------------- SVG: the muscular man (back view) ---------------- */
 const SKIN=['#ffd9b3','#f1c27d','#e0ac69','#c68642','#8d5524','#ffe0bd'];
 const HAIR=['#2b1a10','#111','#7a4a1e','#e0b341','#b03030','#5a5a5a','#3e6ae1'];
-const SHIRT=['#ff5a5f','#3ec1d3','#ffd93d','#6c5ce7','#2ecc71','#ff8c42','#ff5ea0'];
+const TANK=['#ff5a5f','#3ec1d3','#ffd93d','#6c5ce7','#2ecc71','#ff8c42','#ffffff'];
 const JEANS=['#3a6ea5','#27496d','#5a5a8a','#2d6a4f','#444'];
 const pick=a=>a[Math.floor(Math.random()*a.length)];
+function randCfg(vip){return{skin:pick(SKIN),hair:pick(HAIR),tank:pick(TANK),jeans:pick(JEANS),vip:!!vip};}
 
-function hunkSVG(c){
-  const jeanCol = c.vip ? '#f6c026' : c.jeans;
-  return `<svg width="${c.w}" height="${c.h}" viewBox="0 0 120 240" xmlns="http://www.w3.org/2000/svg">
-   <ellipse cx="60" cy="234" rx="40" ry="7" fill="rgba(0,0,0,.18)"/>
-   <path d="M44 168 q-3 35 -2 60 h16 q1 -30 2 -58 Z" fill="${jeanCol}" stroke="#241b2e" stroke-width="4" stroke-linejoin="round"/>
-   <path d="M76 168 q3 35 2 60 h-16 q-1 -30 -2 -58 Z" fill="${jeanCol}" stroke="#241b2e" stroke-width="4" stroke-linejoin="round"/>
-   <ellipse cx="50" cy="231" rx="11" ry="6" fill="#fff" stroke="#241b2e" stroke-width="3.5"/>
-   <ellipse cx="70" cy="231" rx="11" ry="6" fill="#fff" stroke="#241b2e" stroke-width="3.5"/>
-   <path d="M22 86 q-6 30 -2 52 q10 5 14 -2 q-2 -28 0 -50 Z" fill="${c.shirt}" stroke="#241b2e" stroke-width="4" stroke-linejoin="round"/>
-   <path d="M98 86 q6 30 2 52 q-10 5 -14 -2 q2 -28 0 -50 Z" fill="${c.shirt}" stroke="#241b2e" stroke-width="4" stroke-linejoin="round"/>
-   <circle cx="32" cy="138" r="8" fill="${c.skin}" stroke="#241b2e" stroke-width="3.5"/>
-   <circle cx="88" cy="138" r="8" fill="${c.skin}" stroke="#241b2e" stroke-width="3.5"/>
-   <path d="M30 64 q30 -16 60 0 q4 30 -2 64 q-28 10 -56 0 q-6 -34 -2 -64 Z" fill="${c.shirt}" stroke="#241b2e" stroke-width="4" stroke-linejoin="round"/>
-   <g class="booty">
-     <path d="M30 132 q-4 26 14 30 q16 4 16 -10 q0 14 16 10 q18 -4 14 -30 q-30 12 -60 0 Z" fill="${jeanCol}" stroke="#241b2e" stroke-width="4" stroke-linejoin="round"/>
-     <path d="M60 138 v22" stroke="#241b2e" stroke-width="3" opacity=".55"/>
-     <rect x="34" y="134" width="14" height="11" rx="2" fill="none" stroke="#241b2e" stroke-width="2.5" opacity=".5"/>
-     <rect x="72" y="134" width="14" height="11" rx="2" fill="none" stroke="#241b2e" stroke-width="2.5" opacity=".5"/>
-     <rect x="28" y="126" width="64" height="9" rx="4" fill="rgba(0,0,0,.18)"/>
+function manSVG(c,w,h){
+  const jean = c.vip ? '#f6c026' : c.jeans;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 140 290" xmlns="http://www.w3.org/2000/svg">
+   <ellipse cx="70" cy="284" rx="48" ry="8" fill="rgba(0,0,0,.2)"/>
+   <!-- legs -->
+   <path d="M48 200 q-7 42 -5 80 h22 q3 -40 5 -78 Z" fill="${jean}" stroke="#241b2e" stroke-width="4.5" stroke-linejoin="round"/>
+   <path d="M92 200 q7 42 5 80 h-22 q-3 -40 -5 -78 Z" fill="${jean}" stroke="#241b2e" stroke-width="4.5" stroke-linejoin="round"/>
+   <ellipse cx="55" cy="282" rx="14" ry="7" fill="#fff" stroke="#241b2e" stroke-width="4"/>
+   <ellipse cx="85" cy="282" rx="14" ry="7" fill="#fff" stroke="#241b2e" stroke-width="4"/>
+   <!-- BIG round butt -->
+   <g class="butt-g">
+     <path d="M26 150 q-12 44 24 56 q22 7 20 -16 q-2 22 20 16 q36 -12 24 -56 q-56 22 -112 0 Z" fill="${jean}" stroke="#241b2e" stroke-width="4.5" stroke-linejoin="round"/>
+     <path d="M70 160 v40" stroke="#241b2e" stroke-width="3" opacity=".5"/>
+     <path d="M30 148 q40 16 80 0" fill="none" stroke="#241b2e" stroke-width="3" opacity=".45"/>
+     <rect x="22" y="142" width="96" height="11" rx="5" fill="rgba(0,0,0,.2)"/>
    </g>
-   <rect x="52" y="50" width="16" height="16" rx="6" fill="${c.skin}" stroke="#241b2e" stroke-width="3.5"/>
-   <circle cx="60" cy="34" r="23" fill="${c.skin}" stroke="#241b2e" stroke-width="4"/>
-   <path d="M37 32 q-2 -28 23 -28 q25 0 23 28 q-6 -12 -23 -12 q-17 0 -23 12 Z" fill="${c.hair}" stroke="#241b2e" stroke-width="4" stroke-linejoin="round"/>
+   <!-- arms (muscular, bare) -->
+   <path d="M16 84 q-14 32 -3 64 q14 7 20 -5 q-5 -32 0 -58 Z" fill="${c.skin}" stroke="#241b2e" stroke-width="4.5" stroke-linejoin="round"/>
+   <path d="M124 84 q14 32 3 64 q-14 7 -20 -5 q5 -32 0 -58 Z" fill="${c.skin}" stroke="#241b2e" stroke-width="4.5" stroke-linejoin="round"/>
+   <!-- V-taper torso / tank top -->
+   <path d="M24 80 q46 -24 92 0 q7 42 -9 80 q-38 15 -74 0 q-16 -38 -9 -80 Z" fill="${c.tank}" stroke="#241b2e" stroke-width="4.5" stroke-linejoin="round"/>
+   <path d="M70 86 v62" stroke="#241b2e" stroke-width="3" opacity=".25"/>
+   <path d="M48 96 q-12 28 4 48" fill="none" stroke="#241b2e" stroke-width="3" opacity=".2"/>
+   <path d="M92 96 q12 28 -4 48" fill="none" stroke="#241b2e" stroke-width="3" opacity=".2"/>
+   <!-- neck / traps -->
+   <path d="M54 58 q16 -12 32 0 q3 14 -5 22 h-22 q-8 -8 -5 -22 Z" fill="${c.skin}" stroke="#241b2e" stroke-width="4"/>
+   <!-- head (back) + hair -->
+   <circle cx="70" cy="40" r="25" fill="${c.skin}" stroke="#241b2e" stroke-width="4.5"/>
+   <path d="M44 40 q-2 -32 26 -32 q28 0 26 32 q-7 -14 -26 -14 q-19 0 -26 14 Z" fill="${c.hair}" stroke="#241b2e" stroke-width="4.5" stroke-linejoin="round"/>
   </svg>`;
 }
-function randCfg(w,h,vip){ return {w,h,skin:pick(SKIN),hair:pick(HAIR),shirt:pick(SHIRT),jeans:pick(JEANS),vip:!!vip}; }
+
+/* ---------------- SVG: my hand (feminine, first person) ---------------- */
+function handSVG(){
+  // single right-style hand reaching up; open + grab poses
+  return `<svg class="hand-inner" width="220" height="260" viewBox="0 0 220 260" xmlns="http://www.w3.org/2000/svg">
+    <!-- wrist (shared look) -->
+    <path d="M78 196 q-8 34 6 62 h70 q12 -28 4 -62 Z" fill="var(--skin)" stroke="#241b2e" stroke-width="5" stroke-linejoin="round"/>
+    <ellipse cx="118" cy="206" rx="46" ry="12" fill="rgba(0,0,0,.08)"/>
+    <g class="pose-open">
+      <!-- fingers -->
+      <g transform="rotate(-14 70 150)"><rect x="58" y="44" width="26" height="112" rx="13" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/><ellipse cx="71" cy="56" rx="10" ry="8" fill="var(--nail)"/></g>
+      <g transform="rotate(-5 100 150)"><rect x="90" y="30" width="27" height="126" rx="13" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/><ellipse cx="103" cy="42" rx="10" ry="8" fill="var(--nail)"/></g>
+      <g transform="rotate(6 130 150)"><rect x="122" y="36" width="27" height="120" rx="13" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/><ellipse cx="135" cy="48" rx="10" ry="8" fill="var(--nail)"/></g>
+      <g transform="rotate(16 160 150)"><rect x="152" y="52" width="25" height="104" rx="12" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/><ellipse cx="164" cy="64" rx="9" ry="7" fill="var(--nail)"/></g>
+      <!-- back of hand -->
+      <rect x="56" y="120" width="120" height="92" rx="40" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/>
+      <!-- thumb -->
+      <g transform="rotate(-46 60 180)"><rect x="20" y="150" width="26" height="64" rx="13" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/><ellipse cx="33" cy="160" rx="9" ry="7" fill="var(--nail)"/></g>
+    </g>
+    <g class="pose-grab">
+      <!-- closed grabbing fist: palm + knuckles + wrapping thumb -->
+      <rect x="54" y="128" width="124" height="92" rx="40" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/>
+      <circle cx="76" cy="126" r="17" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/>
+      <circle cx="108" cy="120" r="18" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/>
+      <circle cx="140" cy="122" r="18" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/>
+      <circle cx="168" cy="130" r="16" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/>
+      <!-- knuckle creases -->
+      <path d="M70 140 q6 8 12 0 M102 134 q6 8 12 0 M134 136 q6 8 12 0" fill="none" stroke="#241b2e" stroke-width="3" opacity=".5"/>
+      <!-- thumb wrapping across -->
+      <g transform="rotate(-18 70 190)"><rect x="34" y="150" width="80" height="34" rx="17" fill="var(--skin)" stroke="#241b2e" stroke-width="5"/><ellipse cx="44" cy="167" rx="9" ry="7" fill="var(--nail)"/></g>
+    </g>
+  </svg>`;
+}
 
 /* ---------------- FX ---------------- */
 function fxText(x,y,txt,color){
   const e=document.createElement('div'); e.className='fx'; e.textContent=txt;
   if(color)e.style.color=color; e.style.left=x+'px'; e.style.top=y+'px';
   game.appendChild(e); requestAnimationFrame(()=>e.classList.add('go'));
-  setTimeout(()=>e.remove(),850);
+  setTimeout(()=>e.remove(),880);
 }
 function hearts(x,y,n){
   for(let i=0;i<n;i++){
     const h=document.createElement('div'); h.className='heart';
-    h.textContent=pick(['💖','💕','💗','😍','💞']);
+    h.textContent=pick(['💖','💕','💗','😍','💞','😻']);
     h.style.left=x+'px'; h.style.top=y+'px';
-    h.style.setProperty('--dx',(Math.random()*160-80)+'px');
-    h.style.setProperty('--dy',(-60-Math.random()*120)+'px');
+    h.style.setProperty('--dx',(Math.random()*180-90)+'px');
+    h.style.setProperty('--dy',(-70-Math.random()*120)+'px');
     game.appendChild(h); requestAnimationFrame(()=>h.classList.add('go'));
     setTimeout(()=>h.remove(),1000);
   }
 }
 function burst(x,y,color){
   const b=document.createElement('div'); b.className='burst';
-  b.innerHTML=`<svg width="120" height="120" viewBox="0 0 120 120"><path d="M60 4 70 40 104 26 80 56 116 60 80 64 104 94 70 80 60 116 50 80 16 94 40 64 4 60 40 56 16 26 50 40Z" fill="${color||'#ffd93d'}" stroke="#241b2e" stroke-width="4" stroke-linejoin="round"/></svg>`;
+  b.innerHTML=`<svg width="140" height="140" viewBox="0 0 120 120"><path d="M60 4 70 40 104 26 80 56 116 60 80 64 104 94 70 80 60 116 50 80 16 94 40 64 4 60 40 56 16 26 50 40Z" fill="${color||'#ffd93d'}" stroke="#241b2e" stroke-width="4" stroke-linejoin="round"/></svg>`;
   b.style.left=x+'px'; b.style.top=y+'px';
   game.appendChild(b); requestAnimationFrame(()=>b.classList.add('go'));
   setTimeout(()=>b.remove(),520);
 }
+function buttCenter(){
+  if(!man)return{x:innerWidth/2,y:innerHeight*0.55};
+  const r=man.el.getBoundingClientRect();
+  return {x:r.left+r.width/2, y:r.top+r.height*0.62};
+}
 
 /* ---------------- state ---------------- */
 const S={mode:null,score:0,combo:0,best:0,caught:0,timeLeft:0,totalTime:60,running:false,raf:0,last:0};
-function show(name){ for(const k in screens) screens[k].classList.toggle('active', k===name); }
+function show(name){ for(const k in screens) screens[k].classList.toggle('active',k===name); }
 function setHUD(on){ hud.classList.toggle('show',on); timebar.classList.toggle('show',on); }
-function comboMult(){ return 1 + Math.floor(S.combo/5)*0.5; }
+function comboMult(){ return 1+Math.floor(S.combo/4)*0.5; }
 function updHUD(){
-  $('#scoreVal').textContent=S.score;
-  $('#timeVal').textContent=Math.ceil(S.timeLeft);
-  $('#comboVal').textContent=S.combo;
-  timebarFill.style.width=Math.max(0,(S.timeLeft/S.totalTime*100))+'%';
+  $('#scoreVal').textContent=S.score; $('#timeVal').textContent=Math.ceil(S.timeLeft);
+  $('#comboVal').textContent=S.combo; timebarFill.style.width=Math.max(0,(S.timeLeft/S.totalTime*100))+'%';
 }
 function bumpCombo(){ const p=$('#comboPill'); p.classList.add('bump'); setTimeout(()=>p.classList.remove('bump'),120); }
 function addScore(base){
@@ -336,208 +410,162 @@ function addScore(base){
 }
 function breakCombo(){ S.combo=0; updHUD(); }
 
-/* ---------------- STREET MODE ---------------- */
-const stage=$('#stage');
-let lanes=[], dudes=[], lastSpawn=0;
-function setupLanes(){
-  const H=game.clientHeight;
-  lanes=[
-    {y:H*0.62, scale:1.05, speed:95},
-    {y:H*0.55, scale:0.85, speed:78},
-    {y:H*0.50, scale:0.68, speed:62}
-  ];
+/* ---------------- the man ahead ---------------- */
+let man=null, spawnLock=false;
+function setLook(b){ if(!man)return; man.looking=b; man.el.classList.toggle('looking',b); }
+function applyMan(){ if(!man)return; man.el.style.bottom=man.bottom+'%'; man.el.style.transform='translateX(-50%) scale('+man.scale+')'; }
+function spawnMan(){
+  spawnLock=false; if(!S.running) return;
+  const vip=Math.random()<0.2;
+  const cfg=randCfg(vip);
+  const el=document.createElement('div'); el.className='man'+(vip?' vip':'');
+  el.innerHTML=manSVG(cfg,150,300)
+    +'<div class="bubble look">👀</div><div class="bubble shock">😲</div><div class="bubble angry">😡</div>'
+    +(vip?'<div class="crown">👑</div>':'');
+  el.querySelector('svg').classList.add('booty-hot');
+  el.addEventListener('pointerdown',ev=>{ev.preventDefault();doGrab();});
+  manLayer.appendChild(el);
+  man={el,vip,cfg,phase:'approach',t:0,scale:0.42,bottom:40,looking:false,glanceT:0,readyT:0,resolved:false,
+       awayDur:vip?1150:1550, lookDur:vip?1000:650};
+  applyMan();
 }
-function makeDude(){
-  const lane=lanes[Math.floor(Math.random()*lanes.length)];
-  const r=Math.random();
-  const type = r<0.16?'vip' : r<0.32?'decoy' : 'normal';
-  const dir = Math.random()<0.5?1:-1;
-  const baseW=110, baseH=220;
-  const cfg=randCfg(baseW,baseH,type==='vip');
-  const el=document.createElement('div'); el.className='dude'+(type==='vip'?' vip':'');
-  const inner=document.createElement('div'); inner.className='bob'; inner.innerHTML=hunkSVG(cfg);
-  el.appendChild(inner);
-  const w=baseW*lane.scale, h=baseH*lane.scale;
-  const sv=el.querySelector('svg'); sv.setAttribute('width',w); sv.setAttribute('height',h);
-  if(type==='vip'){ const c=document.createElement('div'); c.className='crown'; c.textContent='👑'; el.appendChild(c);
-    for(let i=0;i<3;i++){const s=document.createElement('div');s.className='sparkle';s.textContent='✨';
-      s.style.left=(10+i*40)+'%';s.style.top=(20+i*25)+'%';s.style.animationDelay=(i*.3)+'s';el.appendChild(s);} }
-  if(type==='decoy'){ const b=document.createElement('div'); b.className='ban'; b.textContent='🚫'; el.appendChild(b);
-    const t=document.createElement('div'); t.className='tag2'; t.textContent='남친 있음!'; el.appendChild(t); }
-  else { sv.classList.add('booty-hot'); }
-  el.style.width=w+'px'; el.style.height=h+'px';
-  el.style.bottom=(game.clientHeight-lane.y)+'px';
-  const startX = dir>0 ? -w-10 : game.clientWidth+10;
-  const prog=(S.totalTime-S.timeLeft)/S.totalTime;
-  const d={el,type,dir,x:startX,speed:lane.speed*(0.85+Math.random()*0.4)*(1+prog*0.6),caught:false,w};
-  el.style.left=startX+'px';
-  el.addEventListener('pointerdown',ev=>{ev.preventDefault();onTapDude(d);});
-  stage.appendChild(el); dudes.push(d);
+function showExcite(){
+  scene.classList.add('excited'); setTimeout(()=>scene.classList.remove('excited'),650);
+  const c=buttCenter(); fxText(c.x,c.y-90,'💓 두근두근','#fff'); SFX.heart();
 }
-function onTapDude(d){
-  if(d.caught)return;
-  const rect=d.el.getBoundingClientRect();
-  const cx=rect.left+rect.width/2, cy=rect.top+rect.height*0.62;
-  if(d.type==='decoy'){
-    d.caught=true; SFX.buzz(); breakCombo();
-    fxText(cx,cy-40,'NOPE!','#ff3b6b');
-    S.score=Math.max(0,S.score-30); updHUD();
-    fxText(cx,cy,'-30','#ff3b6b');
-    d.el.style.transition='transform .3s'; d.el.style.transform='translateY(6px) rotate(8deg)';
-    setTimeout(()=>removeDude(d),350);
-    return;
+function leaveMan(kind){
+  if(!man)return; man.phase='leave'; man.t=0; man.kind=kind; setLook(false);
+}
+function doGrab(){
+  if(!man||man.resolved)return;
+  if(man.phase!=='ready'){ // not ready yet -> tiny tease
+    handsEl.classList.add('grabbing'); SFX.squeak();
+    setTimeout(()=>handsEl.classList.remove('grabbing'),300); return;
   }
-  d.caught=true;
-  const base=d.type==='vip'?90:30;
-  if(d.type==='vip')SFX.vip(); else SFX.boing();
-  const pts=addScore(base);
-  d.el.classList.add('caught');
-  burst(cx,cy,d.type==='vip'?'#f6c026':'#ff5ea0');
-  hearts(cx,cy,d.type==='vip'?8:5);
-  fxText(cx,cy-30, d.type==='vip'?'JACKPOT!':pick(['BOING!','POW!','GOTCHA!','팡!']), d.type==='vip'?'#f6c026':'#fff');
-  fxText(cx,cy+20,'+'+pts,'#fff');
-  d.speed=Math.abs(d.speed)*3.2;
-  setTimeout(()=>removeDude(d),700);
-}
-function removeDude(d){ const i=dudes.indexOf(d); if(i>=0)dudes.splice(i,1); if(d.el.parentNode)d.el.remove(); }
-function streetTick(dt){
-  lastSpawn+=dt*1000;
-  const prog=(S.totalTime-S.timeLeft)/S.totalTime;
-  const gap=1100*(1-prog*0.55);
-  const maxDudes=4+Math.floor(prog*3);
-  if(lastSpawn>gap && dudes.length<maxDudes){ lastSpawn=0; makeDude(); }
-  for(let i=dudes.length-1;i>=0;i--){
-    const d=dudes[i]; d.x+=d.speed*d.dir*dt; d.el.style.left=d.x+'px';
-    if((d.dir>0 && d.x>game.clientWidth+20) || (d.dir<0 && d.x<-d.w-20)) removeDude(d);
+  handsEl.classList.add('grabbing');
+  setTimeout(()=>handsEl.classList.remove('grabbing'),360);
+  const c=buttCenter();
+  if(man.looking){ // caught red-handed
+    man.resolved=true; man.el.classList.add('caught'); SFX.buzz(); breakCombo();
+    S.score=Math.max(0,S.score-40); updHUD();
+    fxText(c.x,c.y-30,'딱 걸렸어! 😳','#ff3b6b'); fxText(c.x,c.y+24,'-40','#ff3b6b');
+    setTimeout(()=>leaveMan('caught'),650);
+  }else{ // success grab!
+    man.resolved=true;
+    if(man.vip)SFX.vip(); else SFX.boing();
+    setTimeout(()=>{ man.el.classList.add('startled'); SFX.squeak(); },150);
+    const base=man.vip?120:50; const pts=addScore(base);
+    burst(c.x,c.y,man.vip?'#f6c026':'#ff5ea0'); hearts(c.x,c.y,man.vip?9:6);
+    fxText(c.x,c.y-30,man.vip?'JACKPOT!':pick(['BOING!','POW!','꺄악!','GOTCHA!']),man.vip?'#f6c026':'#fff');
+    fxText(c.x,c.y+24,'+'+pts,'#fff');
+    setTimeout(()=>leaveMan('flee'),620);
   }
 }
+function updateMan(dt){
+  if(!man)return;
+  if(man.phase==='approach'){
+    man.t+=dt*1000; const p=Math.min(1,man.t/1150);
+    man.scale=0.42+0.62*p; man.bottom=40-26*p; applyMan();
+    if(p>=1){ man.phase='ready'; man.t=0; man.readyT=0; man.glanceT=0; setLook(false); showExcite(); }
+  }else if(man.phase==='ready'){
+    man.readyT+=dt*1000; man.glanceT+=dt*1000;
+    if(man.looking && man.glanceT>man.lookDur){ setLook(false); man.glanceT=0; }
+    else if(!man.looking && man.glanceT>man.awayDur){ setLook(true); man.glanceT=0; }
+    if(man.readyT>5400) leaveMan('miss'); // walked off
+  }else if(man.phase==='leave'){
+    man.t+=dt*1000; const p=Math.min(1,man.t/700);
+    man.scale=(man.resolved?1:man.scale)*(1-0.55*p); man.bottom=14+40*p; man.el.style.opacity=String(1-p);
+    man.el.style.bottom=man.bottom+'%'; man.el.style.transform='translateX(-50%) scale('+Math.max(.05,man.scale)+')';
+    if(p>=1){ man.el.remove(); man=null; queueSpawn(550); }
+  }
+}
+function queueSpawn(delay){ if(spawnLock||!S.running)return; spawnLock=true; setTimeout(spawnMan,delay||500); }
 
-/* ---------------- AR MODE ---------------- */
-const arStage=$('#ar-stage'), arVideo=$('#arVideo'), arMsg=$('#ar-msg'),
-      arFallback=$('#ar-fallback'), arScan=$('#arScan');
-let arStream=null, arCurrent=null, arSpawning=false;
+/* ---------------- camera (AR) ---------------- */
+let arStream=null;
 async function startCamera(){
-  arMsg.textContent='📷 카메라 준비 중...'; arFallback.classList.remove('show'); arScan.classList.add('show');
+  arMsg.textContent='📷 카메라 준비 중...'; scene.classList.remove('cam-off');
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ camFallback(); return; }
   try{
     arStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-    arVideo.srcObject=arStream; await arVideo.play().catch(()=>{});
-    arVideo.style.display='block'; arMsg.textContent='';
+    arVideo.srcObject=arStream; await arVideo.play().catch(()=>{}); arMsg.textContent='';
   }catch(e){ camFallback(); }
 }
 function camFallback(){
-  arVideo.style.display='none'; arFallback.classList.add('show');
-  arMsg.textContent='카메라가 없어서 만화 배경으로 진행할게요! 😜';
+  scene.classList.add('cam-off'); arMsg.textContent='카메라가 없어서 만화 배경으로 진행할게요! 😜';
   setTimeout(()=>{ if(arMsg.textContent.indexOf('만화')>=0)arMsg.textContent=''; },1800);
 }
-function stopCamera(){ if(arStream){arStream.getTracks().forEach(t=>t.stop());arStream=null;} arVideo.srcObject=null; arScan.classList.remove('show'); }
-function arSpawn(){
-  arSpawning=false; if(!S.running||S.mode!=='ar')return;
-  const type=Math.random()<0.18?'vip':'normal';
-  const scale=0.9+Math.random()*0.5, baseW=130, baseH=260;
-  const cfg=randCfg(baseW,baseH,type==='vip');
-  const el=document.createElement('div'); el.className='dude'+(type==='vip'?' vip':'');
-  const inner=document.createElement('div'); inner.className='bob'; inner.innerHTML=hunkSVG(cfg); el.appendChild(inner);
-  if(type==='vip'){const c=document.createElement('div');c.className='crown';c.textContent='👑';el.appendChild(c);}
-  const w=baseW*scale,h=baseH*scale, W=game.clientWidth,H=game.clientHeight;
-  const sv=el.querySelector('svg'); sv.setAttribute('width',w); sv.setAttribute('height',h); sv.classList.add('booty-hot');
-  el.style.left=(Math.random()*(W-w-40)+20)+'px';
-  el.style.top=(Math.random()*(H-h-180)+100)+'px';
-  el.style.transform='scale(0)'; el.style.transition='transform .25s cubic-bezier(.2,1.4,.5,1)';
-  arStage.appendChild(el); requestAnimationFrame(()=>el.style.transform='scale(1)');
-  const cur={el,type,caught:false};
-  arCurrent=cur;
-  const life=Math.max(900, 1900-(S.totalTime-S.timeLeft)*22);
-  el.addEventListener('pointerdown',ev=>{ev.preventDefault();onTapAR(cur);});
-  cur.timeout=setTimeout(()=>{
-    if(!cur.caught){ breakCombo(); el.style.transform='scale(0) rotate(20deg)';
-      setTimeout(()=>el.remove(),250); if(arCurrent===cur)arCurrent=null; queueAR(250); }
-  },life);
-}
-function queueAR(delay){ if(arSpawning||!S.running||S.mode!=='ar')return; arSpawning=true; setTimeout(arSpawn, delay||400); }
-function onTapAR(cur){
-  if(cur.caught)return; cur.caught=true; clearTimeout(cur.timeout);
-  const rect=cur.el.getBoundingClientRect(); const cx=rect.left+rect.width/2, cy=rect.top+rect.height*0.6;
-  const base=cur.type==='vip'?100:40;
-  if(cur.type==='vip')SFX.vip(); else SFX.boing();
-  const pts=addScore(base);
-  burst(cx,cy,cur.type==='vip'?'#f6c026':'#39c5ff'); hearts(cx,cy,7);
-  fxText(cx,cy-30,cur.type==='vip'?'PERFECT!':pick(['CAUGHT!','BOING!','GOTCHA!']),cur.type==='vip'?'#f6c026':'#fff');
-  fxText(cx,cy+20,'+'+pts,'#fff');
-  cur.el.classList.add('caught'); cur.el.style.transform='scale(0)';
-  setTimeout(()=>cur.el.remove(),300);
-  if(arCurrent===cur)arCurrent=null; queueAR(350);
-}
+function stopCamera(){ if(arStream){arStream.getTracks().forEach(t=>t.stop());arStream=null;} arVideo.srcObject=null; }
 
 /* ---------------- loop ---------------- */
 function loop(ts){
   if(!S.running)return;
   if(!S.last)S.last=ts; let dt=(ts-S.last)/1000; S.last=ts; if(dt>0.1)dt=0.1;
-  S.timeLeft-=dt; if(S.timeLeft<=0){S.timeLeft=0;updHUD();endGame();return;}
-  if(S.mode==='street')streetTick(dt);
-  updHUD();
+  S.timeLeft-=dt; if(S.timeLeft<=0){ S.timeLeft=0; updHUD(); endGame(); return; }
+  updateMan(dt); updHUD();
   S.raf=requestAnimationFrame(loop);
 }
 
 /* ---------------- start / end ---------------- */
+function clearPlay(){
+  if(man){ man.el.remove(); man=null; } spawnLock=false; handsEl.classList.remove('grabbing');
+}
 function resetState(mode,seconds){
-  S.mode=mode;S.score=0;S.combo=0;S.best=0;S.caught=0;S.timeLeft=seconds;S.totalTime=seconds;S.running=true;S.last=0;
-  updHUD();
+  S.mode=mode;S.score=0;S.combo=0;S.best=0;S.caught=0;S.timeLeft=seconds;S.totalTime=seconds;S.running=true;S.last=0;updHUD();
 }
-function clearStages(){
-  dudes.forEach(d=>{ if(d.el.parentNode)d.el.remove(); }); dudes=[];
-  stage.innerHTML=''; arStage.innerHTML='';
-  if(arCurrent){clearTimeout(arCurrent.timeout);arCurrent=null;} arSpawning=false;
-}
-function startStreet(){
+async function startPlay(mode){
   if(AC()&&actx.state==='suspended')actx.resume();
-  clearStages(); setupLanes(); lastSpawn=900;
-  resetState('street',60); setHUD(true); show('street');
-  S.raf=requestAnimationFrame(loop);
-}
-async function startAR(){
-  if(AC()&&actx.state==='suspended')actx.resume();
-  clearStages(); resetState('ar',45); setHUD(true); show('ar');
-  await startCamera();
-  if(S.running){ S.raf=requestAnimationFrame(loop); queueAR(700); }
+  clearPlay();
+  scene.classList.toggle('scene-ar',mode==='ar');
+  $('#playTip').innerHTML = mode==='ar'
+    ? '카메라 속 꽃미남! 뒤돌아볼 때 말고 안 볼 때 <b>탭</b>해서 잡아요 📸✋'
+    : '앞에 꽃미남 발견! 뒤돌아볼 때 말고, 안 볼 때 <b>탭</b>해서 잡아요 ✋';
+  resetState(mode, mode==='ar'?45:60);
+  setHUD(true); show('play');
+  if(mode==='ar'){ await startCamera(); }
+  if(S.running){ S.raf=requestAnimationFrame(loop); queueSpawn(mode==='ar'?900:600); }
 }
 function endGame(){
   S.running=false; cancelAnimationFrame(S.raf); setHUD(false);
-  if(S.mode==='ar')stopCamera();
-  clearStages(); SFX.win();
+  if(S.mode==='ar')stopCamera(); clearPlay(); SFX.win();
   const ranks=[
-    {min:2000,e:'💎',n:'엉덩이 여신'},
-    {min:1200,e:'👑',n:'엉덩이 마스터'},
-    {min:600,e:'💖',n:'엉덩이 헌터'},
-    {min:200,e:'✨',n:'새내기 헌터'},
-    {min:-1,e:'🐣',n:'연습이 필요해!'}
+    {min:2200,e:'💎',n:'엉덩이 여신'},{min:1300,e:'👑',n:'엉덩이 마스터'},
+    {min:650,e:'💖',n:'엉덩이 헌터'},{min:250,e:'✨',n:'새내기 헌터'},{min:-1,e:'🐣',n:'연습이 필요해!'}
   ];
   const r=ranks.find(x=>S.score>=x.min);
-  $('#rankEmoji').textContent=r.e; $('#rankName').textContent=r.n;
-  $('#finalScore').textContent=S.score;
+  $('#rankEmoji').textContent=r.e; $('#rankName').textContent=r.n; $('#finalScore').textContent=S.score;
   $('#bestCombo').textContent=S.best; $('#caughtCount').textContent=S.caught;
-  $('#resultMode').textContent=(S.mode==='ar'?'📸 AR 모드':'🚶 거리 모드')+' 결과';
+  $('#resultMode').textContent=(S.mode==='ar'?'📸 AR 모드':'🗽 맨해튼 거리')+' 결과';
   show('result');
 }
 function quitToTitle(){
   S.running=false; cancelAnimationFrame(S.raf); setHUD(false);
-  if(S.mode==='ar')stopCamera(); clearStages(); show('title');
+  if(S.mode==='ar')stopCamera(); clearPlay(); show('title');
 }
 
-/* ---------------- title dude ---------------- */
-$('#titleDude').innerHTML=hunkSVG({w:120,h:230,skin:SKIN[0],hair:HAIR[6],shirt:SHIRT[0],jeans:JEANS[0],vip:false});
+/* ---------------- title + skyline ---------------- */
+(function buildSkyline(){
+  const w=innerWidth; let x=0, parts=[];
+  while(x<w){ const bw=24+Math.random()*46, bh=30+Math.random()*90;
+    parts.push(`<rect x="${x}" y="${130-bh}" width="${bw-3}" height="${bh}" fill="#2c2c4e"/>`); x+=bw; }
+  $('#skyline').innerHTML=`<svg width="100%" height="130" viewBox="0 0 ${w} 130" preserveAspectRatio="none">${parts.join('')}</svg>`;
+})();
+$('#titleDude').innerHTML=manSVG({skin:SKIN[0],hair:HAIR[6],tank:TANK[0],jeans:JEANS[0],vip:false},120,250);
+handsEl.innerHTML=`<div class="hand left">${handSVG()}</div><div class="hand right">${handSVG()}</div>`;
 
 /* ---------------- wire up ---------------- */
-$('#playStreet').addEventListener('click',startStreet);
-$('#playAR').addEventListener('click',startAR);
+$('#playStreet').addEventListener('click',()=>startPlay('street'));
+$('#playAR').addEventListener('click',()=>startPlay('ar'));
 $('#howBtn').addEventListener('click',()=>$('#howModal').classList.add('active'));
 $('#howClose').addEventListener('click',()=>$('#howModal').classList.remove('active'));
-$('#againBtn').addEventListener('click',()=>{ S.mode==='ar'?startAR():startStreet(); });
+$('#againBtn').addEventListener('click',()=>startPlay(S.mode||'street'));
 $('#homeBtn').addEventListener('click',()=>show('title'));
 $('#quitBtn').addEventListener('click',quitToTitle);
 $('#muteBtn').addEventListener('click',()=>{ muted=!muted; $('#muteBtn').textContent=muted?'🔇':'🔊'; });
-window.addEventListener('resize',()=>{ if(S.mode==='street')setupLanes(); });
+// tap anywhere on the scene = reach & grab (except HUD buttons)
+scene.addEventListener('pointerdown',ev=>{ if(ev.target.closest('button'))return; doGrab(); });
 game.addEventListener('contextmenu',e=>e.preventDefault());
+window.addEventListener('resize',()=>{ /* skyline stays; layout is responsive */ });
 })();
 </script>
 </body>
