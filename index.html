@@ -170,6 +170,24 @@ body.ar.cam-off #ar-fallback{display:block}
 
 </div>
 
+<script>
+/* boot watchdog + visible error reporting (so a crash shows a message, not a blank screen) */
+window.addEventListener('error',function(e){
+  var m=document.getElementById('arMsg'); if(m&&!window.__booted) m.textContent='⚠️ '+(e.message||'오류');
+});
+window.addEventListener('unhandledrejection',function(e){
+  var m=document.getElementById('arMsg'); if(m) m.textContent='⚠️ '+((e.reason&&e.reason.message)||e.reason||'오류');
+});
+setTimeout(function(){
+  if(!window.__booted){
+    var ld=document.getElementById('loader');
+    if(ld && ld.style.display!=='none'){
+      ld.innerHTML='<div style="padding:24px;text-align:center;line-height:1.6">3D를 불러오지 못했어요 😢<br>'
+        +'<small>Three.js를 인터넷(CDN)에서 받습니다.<br>네트워크 확인 후 새로고침해 주세요.</small></div>';
+    }
+  }
+},10000);
+</script>
 <script type="module">
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -248,7 +266,7 @@ function makeSky(){
 }
 
 /* ============ three.js core ============ */
-let renderer,scene,camera,composer,bloom, cityGroup, sun, dirLight, hemi, skyTex;
+let renderer,scene,camera,composer,bloom, cityGroup, sun, dirLight, hemi, skyTex, usePost=true;
 let facadeTex=[];
 const clock=new THREE.Clock();
 const _v=new THREE.Vector3();
@@ -259,8 +277,8 @@ function toScreen(obj3d){
 }
 
 function initThree(){
-  renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5)); // cap for mobile (avoid OOM crash)
   renderer.setSize(innerWidth,innerHeight);
   renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
   renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -269,15 +287,15 @@ function initThree(){
 
   scene=new THREE.Scene();
   skyTex=makeSky(); scene.background=skyTex;
-  scene.fog=new THREE.FogExp2(0x6a4a7a,0.014);
+  scene.fog=new THREE.FogExp2(0x6a4a7a,0.012);
 
   camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,800);
   camera.position.set(0,1.6,0);
 
-  hemi=new THREE.HemisphereLight(0x9aa0ff,0x2a2030,0.7); scene.add(hemi);
+  hemi=new THREE.HemisphereLight(0x9aa0ff,0x2a2030,0.95); scene.add(hemi);
   dirLight=new THREE.DirectionalLight(0xffd9a0,2.1);
   dirLight.position.set(-6,12,-18); dirLight.castShadow=true;
-  dirLight.shadow.mapSize.set(1024,1024);
+  dirLight.shadow.mapSize.set(512,512);
   dirLight.shadow.camera.near=1; dirLight.shadow.camera.far=40;
   dirLight.shadow.camera.left=-8; dirLight.shadow.camera.right=8;
   dirLight.shadow.camera.top=8; dirLight.shadow.camera.bottom=-8;
@@ -287,20 +305,23 @@ function initThree(){
   // sun glow far down the street
   sun=new THREE.Mesh(new THREE.SphereGeometry(14,24,24),
        new THREE.MeshBasicMaterial({color:0xffd9a0}));
-  sun.position.set(0,16,-320); scene.add(sun);
+  sun.position.set(0,16,-240); scene.add(sun);
 
   for(let i=0;i<6;i++) facadeTex.push(makeFacade());
 
   cityGroup=new THREE.Group(); scene.add(cityGroup);
   buildStreet();
 
-  // composer (street mode)
-  composer=new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene,camera));
-  bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.9,0.7,0.62);
-  composer.addPass(bloom);
-  composer.addPass(new ShaderPass(VignetteGrain));
-  composer.addPass(new OutputPass());
+  // composer (street mode) — fall back to plain render if anything fails
+  try{
+    composer=new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene,camera));
+    bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.7,0.6,0.7);
+    composer.addPass(bloom);
+    composer.addPass(new ShaderPass(VignetteGrain));
+    composer.addPass(new OutputPass());
+    usePost=true;
+  }catch(e){ console.warn('post-processing off:',e); usePost=false; }
 
   buildHands();
   window.addEventListener('resize',onResize);
@@ -321,8 +342,8 @@ const VignetteGrain={
 function onResize(){
   if(!renderer)return;
   camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight); composer.setSize(innerWidth,innerHeight);
-  bloom.setSize(innerWidth,innerHeight);
+  renderer.setSize(innerWidth,innerHeight);
+  if(usePost&&composer){ composer.setSize(innerWidth,innerHeight); bloom.setSize(innerWidth,innerHeight); }
 }
 
 /* ============ street build ============ */
@@ -334,8 +355,8 @@ function buildStreet(){
   ground.rotation.x=-Math.PI/2; ground.position.set(0,0,-len/2+20); ground.receiveShadow=true;
   cityGroup.add(ground);
 
-  // buildings both sides
-  for(let z=8; z>-300; z-=rand(7,10)){
+  // buildings both sides (count kept modest for mobile)
+  for(let z=8; z>-220; z-=rand(9,13)){
     [-1,1].forEach(side=>{
       const depth=rand(6,10), w=rand(6,11), h=rand(14,46);
       const ft=choice(facadeTex);
@@ -352,7 +373,7 @@ function buildStreet(){
     });
   }
   // street lamps (emissive -> bloom)
-  for(let z=2; z>-300; z-=14){
+  for(let z=2; z>-220; z-=20){
     [-1,1].forEach(side=>{
       const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.1,5,6),
         new THREE.MeshStandardMaterial({color:0x15161f,roughness:1}));
@@ -439,15 +460,15 @@ let handL, handR;
 function makeHand(sign){
   const g=new THREE.Group();
   const skin=mat(0xffd2b3,0.55), nail=mat(0xff3f7e,0.4);
-  const palm=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.1,0.26),skin); g.add(palm);
-  const fingers=new THREE.Group(); fingers.position.set(0,0,-0.12);
-  const fx=[-0.075,-0.025,0.025,0.075];
+  const palm=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.12,0.28),skin); g.add(palm);
+  const fingers=new THREE.Group(); fingers.position.set(0,0,-0.13);
+  const fx=[-0.085,-0.028,0.028,0.085];
   fx.forEach((x,i)=>{
-    const len=i===0||i===3?0.16:0.2;
-    const f=new THREE.Mesh(new THREE.CapsuleGeometry(0.026,len,3,6),skin);
+    const len=i===0||i===3?0.18:0.24;
+    const f=new THREE.Mesh(new THREE.CapsuleGeometry(0.032,len,3,6),skin);
     f.rotation.x=Math.PI/2; f.position.set(x,0,-len/2); fingers.add(f);
-    const n=new THREE.Mesh(new THREE.SphereGeometry(0.026,8,8),nail);
-    n.position.set(x,0.012,-len-0.02); fingers.add(n);
+    const n=new THREE.Mesh(new THREE.SphereGeometry(0.032,8,8),nail);
+    n.position.set(x,0.014,-len-0.02); fingers.add(n);
   });
   g.add(fingers);
   const thumb=new THREE.Mesh(new THREE.CapsuleGeometry(0.03,0.13,3,6),skin);
@@ -457,8 +478,9 @@ function makeHand(sign){
 }
 function buildHands(){
   handL=makeHand(-1); handR=makeHand(1);
-  handL.position.set(-0.22,-0.34,-0.55); handL.rotation.set(-0.5,0.25,0.15);
-  handR.position.set(0.22,-0.34,-0.55); handR.rotation.set(-0.5,-0.25,-0.15);
+  // tilt so fingers rise UP into view (positive rotation.x), scaled up for presence
+  handL.position.set(-0.2,-0.30,-0.5); handL.rotation.set(0.7,0.22,0.12); handL.scale.setScalar(1.3);
+  handR.position.set(0.2,-0.30,-0.5); handR.rotation.set(0.7,-0.22,-0.12); handR.scale.setScalar(1.3);
   camera.add(handL); camera.add(handR); scene.add(camera);
 }
 
@@ -534,17 +556,17 @@ function doGrab(){
 function updateMan(dt){
   if(!man)return; const u=man.group.userData;
   if(man.phase==='approach'){
-    man.t+=dt; const p=clamp(man.t/1.2,0,1); man.gap=lerp(8,2.4,p); placeMan();
+    man.t+=dt; const p=clamp(man.t/1.2,0,1); man.gap=lerp(8,3.0,p); placeMan();
     if(p>=1){ man.phase='ready'; man.t=0; man.readyT=0; man.glanceT=0; setLook(false); showExcite(); }
   }else if(man.phase==='ready'){
     man.readyT+=dt; man.glanceT+=dt;
     if(man.looking && man.glanceT>man.lookDur){ setLook(false); man.glanceT=0; }
     else if(!man.looking && man.glanceT>man.awayDur){ setLook(true); man.glanceT=0; }
-    if(S.mode==='street'){ man.gap=2.4; placeMan(); } else { man.gap=2.4; placeMan(); }
+    man.gap=3.0; placeMan();
     if(man.readyT>5.4) leaveMan('miss');
   }else if(man.phase==='leave'){
     man.t+=dt; const p=clamp(man.t/0.7,0,1);
-    man.gap=lerp(2.4,9,p); man.group.position.z=camera.position.z-man.gap;
+    man.gap=lerp(3.0,9,p); man.group.position.z=camera.position.z-man.gap;
     man.group.position.x=lerp(0,man.side*2.2,p);
     man.group.scale.setScalar(Math.max(0.05,1-0.4*p));
     man.group.traverse(o=>{ if(o.material&&'opacity'in o.material){o.material.transparent=true;o.material.opacity=1-p;} });
@@ -578,35 +600,40 @@ function stopCamera(){ if(arStream){arStream.getTracks().forEach(t=>t.stop());ar
 /* ============ loop ============ */
 function frame(){
   if(!S.running)return;
-  const dt=Math.min(clock.getDelta(),0.05);
-  S.timeLeft-=dt; if(S.timeLeft<=0){S.timeLeft=0;updHUD();endGame();return;}
+  try{
+    const dt=Math.min(clock.getDelta(),0.05);
+    S.timeLeft-=dt; if(S.timeLeft<=0){S.timeLeft=0;updHUD();endGame();return;}
 
-  // walk forward (street only) + head bob
-  if(S.mode==='street'){ camera.position.z-=1.5*dt; walkPhase+=dt*7;
-    dirLight.position.set(camera.position.x-6,12,camera.position.z-18);
-    dirLight.target.position.set(camera.position.x,1,camera.position.z-3);
-  } else { walkPhase+=dt*3; }
-  camera.position.y=1.6+Math.sin(walkPhase)*0.035;
-  camera.position.x=Math.sin(walkPhase*0.5)*0.02;
-  camera.rotation.z=Math.sin(walkPhase*0.5)*0.006;
+    // walk forward (street only) + head bob
+    if(S.mode==='street'){ camera.position.z-=1.5*dt; walkPhase+=dt*7;
+      dirLight.position.set(camera.position.x-6,12,camera.position.z-18);
+      dirLight.target.position.set(camera.position.x,1,camera.position.z-3);
+    } else { walkPhase+=dt*3; }
+    camera.position.y=1.6+Math.sin(walkPhase)*0.035;
+    camera.position.x=Math.sin(walkPhase*0.5)*0.02;
+    camera.rotation.z=Math.sin(walkPhase*0.5)*0.006;
 
-  // discovery zoom-in punch when a booty becomes ready
-  const targetFov = (man && man.phase==='ready' && man.readyT<0.6)?baseFov-7:baseFov;
-  camera.fov=lerp(camera.fov,targetFov,0.08); camera.updateProjectionMatrix();
+    // discovery zoom-in punch when a booty becomes ready
+    const targetFov=(man && man.phase==='ready' && man.readyT<0.6)?baseFov-7:baseFov;
+    camera.fov=lerp(camera.fov,targetFov,0.08); camera.updateProjectionMatrix();
 
-  // hand grab animation
-  grabT=Math.max(0,grabT-dt*3.2);
-  const reach=grabT; const bob=Math.sin(walkPhase*0.5)*0.012;
-  [[handL,-1],[handR,1]].forEach(([h,sgn])=>{
-    h.position.z=-0.55-reach*0.34; h.position.x=sgn*0.22*(1-reach*0.45);
-    h.position.y=-0.34+bob+reach*0.16; h.userData.fingers.rotation.x=reach*1.3;
-  });
+    // first-person hand idle + grab animation (kept low in frame so they're always visible)
+    grabT=Math.max(0,grabT-dt*3.2);
+    const reach=grabT, bob=Math.sin(walkPhase*0.5)*0.012;
+    [[handL,-1],[handR,1]].forEach(([h,sgn])=>{
+      h.position.z=-0.5-reach*0.34; h.position.x=sgn*0.17*(1-reach*0.55);
+      h.position.y=-0.30+bob+reach*0.16; h.userData.fingers.rotation.x=reach*1.3;
+    });
 
-  updateMan(dt);
+    updateMan(dt);
 
-  VignetteGrain.uniforms.uTime.value+=dt;
-  if(S.mode==='street'){ composer.render(); } else { renderer.render(scene,camera); }
-  S.raf=requestAnimationFrame(frame);
+    if(S.mode==='street' && usePost && composer){ VignetteGrain.uniforms.uTime.value+=dt; composer.render(); }
+    else { renderer.render(scene,camera); }
+    S.raf=requestAnimationFrame(frame);
+  }catch(err){
+    console.error('frame error:',err); S.running=false; cancelAnimationFrame(S.raf);
+    arMsg.textContent='⚠️ 오류로 멈췄어요: '+(err&&err.message||err);
+  }
 }
 
 /* ============ start / end ============ */
@@ -615,8 +642,9 @@ async function startPlay(mode){
   if(AC()&&actx.state==='suspended')actx.resume();
   clearMan(); showScreen(null); document.body.classList.toggle('ar',mode==='ar');
   camera.position.set(0,1.6,0); camera.fov=baseFov; camera.updateProjectionMatrix(); walkPhase=0; grabT=0;
-  if(mode==='ar'){ scene.background=null; scene.fog=null; cityGroup.visible=false; sun.visible=false; }
-  else { scene.background=skyTex; scene.fog=new THREE.FogExp2(0x6a4a7a,0.014); cityGroup.visible=true; sun.visible=true; }
+  if(mode==='ar'){ scene.background=null; scene.fog=null; cityGroup.visible=false; sun.visible=false;
+    dirLight.position.set(-3,6,2); dirLight.target.position.set(0,1,-3); }
+  else { scene.background=skyTex; scene.fog=new THREE.FogExp2(0x6a4a7a,0.012); cityGroup.visible=true; sun.visible=true; }
   $('#hint').innerHTML = mode==='ar'
     ? '카메라 속 꽃미남! 안 볼 때 화면을 <b>탭</b>해서 잡아요 📸✋'
     : '앞의 꽃미남! 뒤돌아볼 때(👀) 말고 안 볼 때 <b>탭</b> ✋🍑';
@@ -654,6 +682,7 @@ window.addEventListener('contextmenu',e=>e.preventDefault());
 try{
   initThree();
   $('#loader').style.display='none';
+  window.__booted=true;
 }catch(err){
   console.error(err);
   $('#loader').innerHTML='<div style="padding:20px;text-align:center">3D 로딩 실패 😢<br><small>'+(err&&err.message||err)+'</small></div>';
