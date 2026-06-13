@@ -72,6 +72,10 @@ body.ar.cam-off #ar-fallback{display:block}
 #loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:30;background:radial-gradient(circle at 50% 40%,#3a2a5a,#0c0820);color:#fff}
 #loader .spin{width:54px;height:54px;border:6px solid rgba(255,255,255,.25);border-top-color:var(--pink);border-radius:50%;animation:spin 1s linear infinite}
 #arMsg{position:absolute;top:40%;left:0;right:0;text-align:center;color:#fff;font-size:20px;text-shadow:0 2px 8px #000;z-index:15;pointer-events:none}
+#trackHand{position:absolute;left:0;top:0;z-index:18;font-size:78px;transform:translate(-50%,-50%);pointer-events:none;display:none;filter:drop-shadow(0 4px 7px rgba(0,0,0,.55));transition:font-size .08s,transform .05s}
+#trackHand.show{display:block}
+#trackHand.closed{font-size:62px}
+#trackHand.over{filter:drop-shadow(0 0 14px #ff5ea0) drop-shadow(0 4px 7px rgba(0,0,0,.55))}
 
 /* RESULT */
 #s-result{background:radial-gradient(circle at 50% 30%,var(--pink2),var(--purple))}
@@ -105,6 +109,7 @@ body.ar.cam-off #ar-fallback{display:block}
   <div id="vig"></div>
   <div id="fxLayer"></div>
   <div id="arMsg"></div>
+  <div id="trackHand">✋</div>
   <div id="hint"></div>
 
   <div id="loader"><div class="spin"></div><div>3D 맨해튼 로딩 중… 🏙️</div></div>
@@ -482,6 +487,8 @@ function buildHands(){
 /* ============ game state ============ */
 const S={mode:null,score:0,combo:0,best:0,caught:0,timeLeft:0,total:60,running:false,raf:0};
 let man=null, spawnLock=false, grabT=0, walkPhase=0, baseFov=62, frameErrs=0;
+let handTracker=null, handTrackerReady=false, handTrackerTried=false, trackClosed=false, prevClosed=false, trackTick=0;
+const trackPos={x:0,y:0};
 const screens={title:$('#s-title'),result:$('#s-result')};
 function showScreen(name){ for(const k in screens)screens[k].classList.toggle('active',k===name); }
 function setHUD(on){ $('#hud').classList.toggle('show',on); $('#timebar').classList.toggle('show',on); }
@@ -592,6 +599,51 @@ function camFallback(){ document.body.classList.add('cam-off');
   setTimeout(()=>{ if(arMsg.textContent.indexOf('만화')>=0)arMsg.textContent=''; },1800); }
 function stopCamera(){ if(arStream){arStream.getTracks().forEach(t=>t.stop());arStream=null;} arVideo.srcObject=null; }
 
+/* ============ real hand tracking (MediaPipe, lazy-loaded; tap fallback) ============ */
+async function initHandTracker(){
+  if(handTrackerTried) return; handTrackerTried=true;
+  arMsg.textContent='✋ 손 인식 준비 중...';
+  try{
+    const mod=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
+    const vision=await mod.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+    const make=(delegate)=>mod.HandLandmarker.createFromOptions(vision,{
+      baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate},
+      runningMode:'VIDEO', numHands:1});
+    try{ handTracker=await make('GPU'); }catch(e1){ handTracker=await make('CPU'); }
+    handTrackerReady=true; handL.visible=handR.visible=false; // tracked hand replaces fixed hands
+    arMsg.textContent='✋ 손을 카메라에 비추고 주먹을 쥐어 잡아요!';
+    setTimeout(()=>{ if(arMsg.textContent.indexOf('주먹')>=0)arMsg.textContent=''; },3200);
+  }catch(e){
+    console.warn('hand tracking unavailable -> tap fallback:',e); handTrackerReady=false;
+    arMsg.textContent='손 인식을 못 켰어요 — 화면을 탭해서 잡아요 ✋';
+    setTimeout(()=>{ if(arMsg.textContent.indexOf('탭해서')>=0)arMsg.textContent=''; },3200);
+  }
+}
+function tryHandGrab(sx,sy){
+  if(!man||man.resolved||man.phase!=='ready'){ grabT=1; return; }
+  const b=buttScreen(); const d=Math.hypot(sx-b.x,sy-b.y);
+  if(d < Math.max(150,innerWidth*0.32)) doGrab(); else { grabT=1; SFX.squeak(); }
+}
+function trackHandFrame(){
+  const th=$('#trackHand');
+  if(!(handTrackerReady && handTracker && arVideo && arVideo.readyState>=2)) return;
+  if((trackTick++ % 2)!==0) return; // throttle inference (~half rate)
+  let res; try{ res=handTracker.detectForVideo(arVideo,performance.now()); }catch(e){ return; }
+  if(res && res.landmarks && res.landmarks.length){
+    const lm=res.landmarks[0], wrist=lm[0], mcp=lm[9], palm=lm[9];
+    trackPos.x=palm.x*innerWidth; trackPos.y=palm.y*innerHeight;
+    const hs=Math.hypot(mcp.x-wrist.x,mcp.y-wrist.y)||1e-4;
+    let avg=0; [8,12,16,20].forEach(i=>avg+=Math.hypot(lm[i].x-wrist.x,lm[i].y-wrist.y)); avg/=4;
+    trackClosed=(avg/hs)<1.5;
+    const b=buttScreen(), over=Math.hypot(trackPos.x-b.x,trackPos.y-b.y)<Math.max(150,innerWidth*0.32);
+    th.textContent=trackClosed?'✊':'✋';
+    th.style.left=trackPos.x+'px'; th.style.top=trackPos.y+'px';
+    th.classList.add('show'); th.classList.toggle('closed',trackClosed); th.classList.toggle('over',over && man && man.phase==='ready');
+    if(trackClosed && !prevClosed) tryHandGrab(trackPos.x,trackPos.y);
+    prevClosed=trackClosed;
+  } else { th.classList.remove('show'); prevClosed=false; }
+}
+
 /* ============ loop ============ */
 function frame(){
   if(!S.running)return;
@@ -621,6 +673,7 @@ function frame(){
     });
 
     updateMan(dt);
+    if(S.mode==='ar') trackHandFrame();
 
     if(S.mode==='street' && usePost && composer){
       try{ VignetteGrain.uniforms.uTime.value+=dt; composer.render(); }
@@ -647,14 +700,15 @@ async function startPlay(mode){
   if(AC()&&actx.state==='suspended')actx.resume();
   clearMan(); showScreen(null); document.body.classList.toggle('ar',mode==='ar');
   camera.position.set(0,1.6,0); camera.fov=baseFov; camera.updateProjectionMatrix(); walkPhase=0; grabT=0;
+  handL.visible=handR.visible=true; $('#trackHand').classList.remove('show'); prevClosed=false; // reset hands
   if(mode==='ar'){ scene.background=null; scene.fog=null; cityGroup.visible=false; sun.visible=false;
     dirLight.position.set(-3,6,2); dirLight.target.position.set(0,1,-3); }
   else { scene.background=skyTex; scene.fog=new THREE.FogExp2(0x6a4a7a,0.012); cityGroup.visible=true; sun.visible=true; }
   $('#hint').innerHTML = mode==='ar'
-    ? '카메라 속 꽃미남! 안 볼 때 화면을 <b>탭</b>해서 잡아요 📸✋'
+    ? '✋ 손을 카메라에 비추고 <b>주먹 쥐어</b> 잡아요 (안 되면 화면 <b>탭</b>)'
     : '앞의 꽃미남! 뒤돌아볼 때(👀) 말고 안 볼 때 <b>탭</b> ✋🍑';
   resetState(mode, mode==='ar'?45:60); setHUD(true);
-  if(mode==='ar') await startCamera();
+  if(mode==='ar'){ await startCamera(); initHandTracker(); }
   clock.getDelta();
   if(S.running){ S.raf=requestAnimationFrame(frame); queueSpawn(mode==='ar'?0.8:0.5); }
 }
@@ -667,10 +721,10 @@ function endGame(){
   $('#rankEmoji').textContent=r.e; $('#rankName').textContent=r.n; $('#finalScore').textContent=S.score;
   $('#bestCombo').textContent=S.best; $('#caughtCount').textContent=S.caught;
   $('#resultMode').textContent=(S.mode==='ar'?'📸 AR 모드':'🗽 맨해튼 거리')+' 결과';
-  document.body.classList.remove('ar'); showScreen('result');
+  document.body.classList.remove('ar'); $('#trackHand').classList.remove('show'); showScreen('result');
 }
 function quitToTitle(){ S.running=false; cancelAnimationFrame(S.raf); setHUD(false);
-  if(S.mode==='ar')stopCamera(); clearMan(); document.body.classList.remove('ar'); showScreen('title'); }
+  if(S.mode==='ar')stopCamera(); clearMan(); document.body.classList.remove('ar'); $('#trackHand').classList.remove('show'); showScreen('title'); }
 
 /* ============ wire up ============ */
 $('#playStreet').addEventListener('click',()=>startPlay('street'));
