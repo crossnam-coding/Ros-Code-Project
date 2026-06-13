@@ -164,7 +164,7 @@ body{position:fixed;inset:0;background:#0c0820}
     <div class="result-card" style="gap:10px">
       <div style="font-size:48px">📷✋</div>
       <h2 class="comic" style="color:var(--purple);font-size:26px">AR 손인식 모드</h2>
-      <p>휴대폰을 들고 <b>다른 손</b>을 화면 쪽(<b>전면</b>) 카메라에 비추세요. 손을 움직이면 커서가 따라오고, <b>주먹을 쥐면</b> 엉덩이를 잡아요 🍑</p>
+      <p>휴대폰을 들고 <b>다른 손</b>을 화면 쪽(<b>전면</b>) 카메라에 비추세요. 손을 움직이면 손이 따라오고, <b>손을 오므리면(잡듯이)</b> 엉덩이를 잡아요 🍑</p>
       <p style="font-size:12px;color:#888">아래 버튼을 누르면 <b>카메라 권한 허용</b> 창이 떠요. (밝은 곳 권장)</p>
       <button class="btn pink" id="arStartCam">📷 카메라 켜고 손인식 시작</button>
       <button class="btn gray" id="arStartTap">👆 카메라 없이 탭으로 할래요</button>
@@ -627,8 +627,8 @@ async function initHandTracker(){
     })();
     handTracker=await Promise.race([setup,timeout]);
     handTrackerReady=true; // fixed hands stay until a real hand is detected (handled per-frame)
-    arMsg.textContent='✋ 손을 카메라에 비추고 주먹을 쥐어 잡아요!';
-    setTimeout(()=>{ if(arMsg.textContent.indexOf('주먹')>=0)arMsg.textContent=''; },3500);
+    arMsg.textContent='✋ 손을 비추고 손을 오므리면(잡듯이) 잡아요!';
+    setTimeout(()=>{ if(arMsg.textContent.indexOf('오므리')>=0)arMsg.textContent=''; },3500);
   }catch(e){
     console.warn('hand tracking unavailable -> tap fallback:',e); handTrackerReady=false;
     handL.visible=handR.visible=true; // keep the on-screen hands; tap still works
@@ -636,14 +636,14 @@ async function initHandTracker(){
     setTimeout(()=>{ if(arMsg.textContent.indexOf('탭해서')>=0)arMsg.textContent=''; },4000);
   }
 }
-function isClosed(lm){ // fist = at least 3 fingers folded (tip not much beyond its PIP joint) — lenient
-  const w=lm[0], tips=[8,12,16,20], pips=[6,10,14,18]; let folded=0;
-  for(let k=0;k<4;k++){
-    const dt=Math.hypot(lm[tips[k]].x-w.x,lm[tips[k]].y-w.y);
-    const dp=Math.hypot(lm[pips[k]].x-w.x,lm[pips[k]].y-w.y);
-    if(dt < dp*1.2) folded++; // lenient: a partial curl already counts
-  }
-  return folded>=3;
+function isClosed(lm){ // grab = fingers curled (tip near its own knuckle) OR a thumb-index pinch; lenient & orientation-robust
+  const D=(a,b)=>Math.hypot(lm[a].x-lm[b].x, lm[a].y-lm[b].y, (lm[a].z||0)-(lm[b].z||0));
+  const scale=D(0,9)||1e-4;               // wrist -> middle-finger knuckle = hand size
+  const tips=[8,12,16,20], mcps=[5,9,13,17];
+  let sum=0, curled=0;
+  for(let k=0;k<4;k++){ const r=D(tips[k],mcps[k])/scale; sum+=r; if(r<0.8) curled++; }
+  const pinch = D(4,8)/scale < 0.55;      // thumb-index pinch counts as a grab too
+  return curled>=2 || (sum/4)<0.78 || pinch;
 }
 function tryHandGrab(sx,sy){
   if(!man||man.resolved||man.phase!=='ready'){ grabT=1; return; }
@@ -749,7 +749,7 @@ async function startPlay(useHand){
   handL.visible=handR.visible=true; // always show hands
   handL.scale.setScalar(1.3); handR.scale.setScalar(useHand?0.6:1.3); // smaller single hand when tracking
   $('#hint').innerHTML = useHand
-    ? '✋ 손을 카메라에 비추고 <b>주먹 쥐어</b> 엉덩이를 잡아요! (안 되면 화면 <b>탭</b>)'
+    ? '✋ 손을 카메라에 비추고 <b>손을 오므리면(잡듯이)</b> 엉덩이를 잡아요! (안 되면 화면 <b>탭</b>)'
     : '👆 화면을 <b>탭</b>해서 엉덩이를 잡아요! 뒤돌아볼 때(👀)는 금지 🍑';
   resetState('street',60); setHUD(true);
   if(useHand){ // ask for camera permission first (camera reads your hand; Manhattan stays the view)
