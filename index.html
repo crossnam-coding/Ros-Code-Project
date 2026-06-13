@@ -121,8 +121,8 @@ body{position:fixed;inset:0;background:#0c0820}
       <h1 class="logo comic stroke">BOOTY<br>BUMP 3D<small>맨해튼 엉덩이 헌터 💖</small></h1>
       <div class="tag">1인칭 3D · 내 손으로 직접 잡아요 ✋🍑</div>
       <div class="menu">
-        <button class="btn pink" id="playStreet">✋ 맨해튼 · 손 인식 (카메라)</button>
-        <button class="btn blue" id="playAR">👆 맨해튼 · 탭으로</button>
+        <button class="btn pink" id="playStreet">🎵 리듬 · 손 인식 (카메라)</button>
+        <button class="btn blue" id="playAR">🎵 리듬 · 탭으로</button>
         <button class="btn yellow" id="howBtn">❓ 게임 방법</button>
       </div>
       <p class="note">※ 등장하는 남자는 전부 100% 만화 캐릭터예요. 가볍게 웃으며 즐기는 코믹 게임 😎</p>
@@ -164,7 +164,7 @@ body{position:fixed;inset:0;background:#0c0820}
     <div class="result-card" style="gap:10px">
       <div style="font-size:48px">📷✋</div>
       <h2 class="comic" style="color:var(--purple);font-size:26px">AR 손인식 모드</h2>
-      <p>휴대폰을 들고 <b>다른 손</b>을 화면 쪽(<b>전면</b>) 카메라에 비추세요. 손을 움직이면 손이 따라오고, <b>손을 오므리면(잡듯이)</b> 엉덩이를 잡아요 🍑</p>
+      <p>휴대폰을 들고 <b>다른 손</b>을 화면 쪽(<b>전면</b>) 카메라에 비추세요. 손을 <b>좌·우로 움직여</b> 엉덩이가 오는 <b>레인</b>에 맞추면 박자에 잡혀요 🍑</p>
       <p style="font-size:12px;color:#888">아래 버튼을 누르면 <b>카메라 권한 허용</b> 창이 떠요. (밝은 곳 권장)</p>
       <button class="btn pink" id="arStartCam">📷 카메라 켜고 손인식 시작</button>
       <button class="btn gray" id="arStartTap">👆 카메라 없이 탭으로 할래요</button>
@@ -177,11 +177,11 @@ body{position:fixed;inset:0;background:#0c0820}
   <section id="howModal" class="screen" style="background:rgba(0,0,0,.6);z-index:40">
     <div class="result-card" style="gap:8px;text-align:left">
       <h2 class="comic" style="color:var(--purple);text-align:center;font-size:26px">게임 방법 📖</h2>
-      <p>🗽 황혼의 맨해튼을 <b>1인칭 3D</b>로 걸어요. 화면 아래 <b>내 손</b>으로 직접 잡습니다.</p>
-      <p>🍑 앞의 꽃미남이 다가오면 <b>두근두근 💓</b> 엉덩이가 줌인! 화면을 <b>탭</b>하면 손이 뻗어 <b>팡!</b></p>
-      <p>👀 남자가 <b>뒤돌아볼 때(👀)</b> 잡으면 딱 걸려 감점! 안 볼 때를 노리세요.</p>
-      <p>👑 황금 꽃미남은 점수 대박! (대신 자주 돌아봐요 😜)</p>
-      <p>📸 <b>AR 모드</b> — 카메라 위에 내 손과 꽃미남이 나타나요. (권한 거부 시 만화 배경)</p>
+      <p>🎵 <b>리듬 게임!</b> 황혼의 맨해튼 하이웨이로 꽃미남 엉덩이들이 <b>3개 레인</b>을 따라 박자에 맞춰 다가와요.</p>
+      <p>🍑 엉덩이가 <b>히트라인</b>에 닿는 순간, 내 손이 그 <b>레인</b>에 있으면 터치 성공! (Perfect + 콤보)</p>
+      <p>👀 <b>쳐다보는 놈(👀)</b>의 레인에 손이 있으면 "딱 걸렸어!" 감점 — 그 레인은 <b>피하세요</b>.</p>
+      <p>👑 황금 엉덩이는 점수 3배! / 점수 랭크 🐣→✨→💖→👑→💎</p>
+      <p>✋ <b>손 인식</b>: 전면 카메라에 손을 비추고 <b>좌·우로 움직여</b> 레인을 맞춰요. (안 되면 <b>탭</b>)</p>
       <button class="btn purple" id="howClose" style="margin-top:6px">알겠어! 👍</button>
     </div>
   </section>
@@ -337,6 +337,7 @@ function initThree(){
   }catch(e){ console.warn('post-processing off:',e); usePost=false; }
 
   buildHands();
+  buildHitZone();
   window.addEventListener('resize',onResize);
 }
 
@@ -521,82 +522,63 @@ function heartsAt(sx,sy,n){ for(let i=0;i<n;i++){ const h=document.createElement
   h.textContent=choice(['💖','💕','💗','😍','💞','😻']); h.style.left=sx+'px'; h.style.top=sy+'px';
   h.style.setProperty('--dx',rand(-90,90)+'px'); h.style.setProperty('--dy',rand(-160,-70)+'px');
   fxLayer.appendChild(h); requestAnimationFrame(()=>h.classList.add('go')); setTimeout(()=>h.remove(),1000);} }
-function buttScreen(){ if(!man)return{x:innerWidth/2,y:innerHeight/2}; return toScreen(man.group.userData.butt); }
+/* ============ rhythm: 3D highway of booties ============ */
+const LANE_X=[-0.8,0,0.8], HIT_Z=-3.0, SPAWN_Z=-22, NOTE_END=1.6;
+const BPM=104, BEAT=60/BPM, LEAD=4, NOTE_SPEED=(HIT_Z-SPAWN_Z)/(LEAD*BEAT);
+let notes=[], lastLane=-1, handNX=0, hitPads=[], hitLine=null;
+function handLane(){ return handNX<-0.4?0 : (handNX>0.4?2 : 1); } // hand X -> lane 0/1/2
+function buildHitZone(){
+  for(let i=0;i<3;i++){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.78,0.04,0.85),
+    new THREE.MeshBasicMaterial({color:0x39c5ff,transparent:true,opacity:0.14}));
+    p.position.set(LANE_X[i],0.04,HIT_Z); p.visible=false; scene.add(p); hitPads.push(p); }
+  hitLine=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.06,0.12),new THREE.MeshBasicMaterial({color:0xffd93d}));
+  hitLine.position.set(0,0.06,HIT_Z); hitLine.visible=false; scene.add(hitLine);
+}
+function clearNotes(){ notes.forEach(n=>scene.remove(n.group)); notes=[]; lastLane=-1;
+  if(man){scene.remove(man.group);man=null;}
+  hitPads.forEach(p=>p.visible=false); if(hitLine)hitLine.visible=false; }
+function spawnNote(){
+  let lane=Math.floor(Math.random()*3); if(lane===lastLane && Math.random()<0.55) lane=(lane+1)%3; lastLane=lane;
+  const r=Math.random(), type=r<0.22?'trap':(r<0.34?'vip':'normal'), vip=type==='vip';
+  const g=makeMan(vip), u=g.userData;
+  if(type==='trap'){ u.emote.visible=true; setEmote(u.emote,'👀'); u.head.rotation.y=2.4; } // looking back -> don't touch
+  g.position.set(LANE_X[lane],0,SPAWN_Z); scene.add(g);
+  notes.push({group:g,lane,type,vip,z:SPAWN_Z,judged:false,react:null,rt:0});
+}
+function judge(n){
+  n.judged=true; const hl=handLane(), sp=toScreen(n.group.userData.butt), u=n.group.userData;
+  if(n.type==='trap'){
+    if(hl===n.lane){ SFX.buzz(); breakCombo(); S.score=Math.max(0,S.score-40); updHUD();
+      setEmote(u.emote,'😡'); fxAt(sp.x,sp.y-30,'딱 걸렸어! 😳','#ff3b6b'); fxAt(sp.x,sp.y+22,'-40','#ff3b6b'); }
+    else { S.combo++; if(S.combo>S.best)S.best=S.combo; updHUD(); fxAt(sp.x,sp.y-30,'SAFE ✨','#39c5ff'); }
+  } else {
+    if(hl===n.lane){ n.react='hit'; n.rt=0; if(n.vip)SFX.vip(); else SFX.boing();
+      const pts=addScore(n.vip?120:50);
+      setEmote(u.emote,'😲'); u.emote.visible=true; u.mouth.scale.set(1,1,0.6); u.eyeL.scale.setScalar(1.4); u.eyeR.scale.setScalar(1.4);
+      fxAt(sp.x,sp.y-30,n.vip?'JACKPOT!':choice(['PERFECT!','GRAB!','꺄악!','POW!']),n.vip?'#f6c026':'#fff');
+      fxAt(sp.x,sp.y+22,'+'+pts,'#fff'); heartsAt(sp.x,sp.y,n.vip?9:6);
+    } else { SFX.squeak(); breakCombo(); fxAt(sp.x,sp.y-30,'MISS','#ff3b6b'); }
+  }
+}
+function updateNotes(dt){
+  for(let i=notes.length-1;i>=0;i--){ const n=notes[i]; n.z+=NOTE_SPEED*dt; n.group.position.z=n.z;
+    if(!n.judged && n.z>=HIT_Z) judge(n);
+    if(n.react==='hit'){ n.rt+=dt; const t=n.rt, sq=t<0.4?Math.sin(t/0.4*Math.PI):0;
+      n.group.userData.butt.scale.set(1+sq*0.25,1-sq*0.32,1+sq*0.25);
+      n.group.position.y=Math.sin(clamp(t/0.5,0,1)*Math.PI)*0.25; }
+    if(n.z>NOTE_END){ scene.remove(n.group); notes.splice(i,1); }
+  }
+}
+function onBeat(){ beatSound(S.beat||0); S.beat=(S.beat||0)+1; if(Math.random()<0.82) spawnNote(); }
+function beatSound(b){ tone(110,.15,'sine',.3,45); if(b%2===1) tone(1600,.05,'square',.06,1300);
+  const bass=[110,110,146.8,98][b%4]; tone(bass,.2,'triangle',.12); }
 
-/* ============ man lifecycle ============ */
-function setLook(b){ if(!man)return; man.looking=b; const u=man.group.userData;
-  u.emote.visible=b; if(b)setEmote(u.emote,'👀');
-  u.head.rotation.y = b ? (man.side>0?2.2:-2.2) : 0;
+function startLoop(){ // begin the song/render loop
+  notes.forEach(n=>scene.remove(n.group)); notes=[]; lastLane=-1;
+  S.songT=0; S.nextBeat=BEAT; S.beat=0;
+  hitPads.forEach(p=>p.visible=true); if(hitLine)hitLine.visible=true;
+  clock.getDelta(); S.raf=requestAnimationFrame(frame);
 }
-function spawnMan(){
-  spawnLock=false; if(!S.running)return;
-  const vip=Math.random()<0.2;
-  const group=makeMan(vip);
-  man={group,vip,phase:'approach',t:0,gap:8,looking:false,glanceT:0,readyT:0,resolved:false,
-       side:Math.random()<0.5?1:-1, awayDur:vip?1.15:1.55, lookDur:vip?1.0:0.65};
-  group.userData.looking=false;
-  placeMan(); scene.add(group);
-}
-function placeMan(){
-  man.group.position.set(0,0,camera.position.z - man.gap);
-  man.group.scale.setScalar(1);
-}
-function clearMan(){ if(man){ scene.remove(man.group); man=null; } spawnLock=false; }
-function leaveMan(kind){ if(!man)return; man.phase='leave'; man.t=0; man.kind=kind; setLook(false); }
-
-function showExcite(){
-  $('#vig').classList.add('excited'); setTimeout(()=>$('#vig').classList.remove('excited'),650);
-  const b=buttScreen(); fxAt(b.x,b.y-90,'💓 두근두근','#fff'); SFX.heart();
-}
-function doGrab(){
-  if(!man||man.resolved)return;
-  if(man.phase!=='ready'){ grabT=1; SFX.squeak(); return; }
-  grabT=1; const u=man.group.userData; const b=buttScreen();
-  if(man.looking){
-    man.resolved=true; SFX.buzz(); breakCombo(); S.score=Math.max(0,S.score-40); updHUD();
-    setEmote(u.emote,'😡'); u.emote.visible=true;
-    fxAt(b.x,b.y-30,'딱 걸렸어! 😳','#ff3b6b'); fxAt(b.x,b.y+24,'-40','#ff3b6b');
-    setTimeout(()=>leaveMan('caught'),650);
-  }else{
-    man.resolved=true; if(man.vip)SFX.vip(); else SFX.boing();
-    man.startle=0; // triggers squish/jump in update
-    setEmote(u.emote,'😲'); u.emote.visible=true; u.head.rotation.y=man.side>0?2.6:-2.6;
-    u.mouth.scale.set(1,1,0.6); u.eyeL.scale.setScalar(1.5); u.eyeR.scale.setScalar(1.5);
-    const base=man.vip?120:50, pts=addScore(base);
-    fxAt(b.x,b.y-30,man.vip?'JACKPOT!':choice(['BOING!','POW!','꺄악!','GOTCHA!']),man.vip?'#f6c026':'#fff');
-    fxAt(b.x,b.y+24,'+'+pts,'#fff'); heartsAt(b.x,b.y,man.vip?9:6);
-    setTimeout(()=>leaveMan('flee'),620);
-  }
-}
-function updateMan(dt){
-  if(!man)return; const u=man.group.userData;
-  if(man.phase==='approach'){
-    man.t+=dt; const p=clamp(man.t/1.2,0,1); man.gap=lerp(8,3.0,p); placeMan();
-    if(p>=1){ man.phase='ready'; man.t=0; man.readyT=0; man.glanceT=0; setLook(false); showExcite(); }
-  }else if(man.phase==='ready'){
-    man.readyT+=dt; man.glanceT+=dt;
-    if(man.looking && man.glanceT>man.lookDur){ setLook(false); man.glanceT=0; }
-    else if(!man.looking && man.glanceT>man.awayDur){ setLook(true); man.glanceT=0; }
-    man.gap=3.0; placeMan();
-    if(man.readyT>5.4) leaveMan('miss');
-  }else if(man.phase==='leave'){
-    man.t+=dt; const p=clamp(man.t/0.7,0,1);
-    man.gap=lerp(3.0,9,p); man.group.position.z=camera.position.z-man.gap;
-    man.group.position.x=lerp(0,man.side*2.2,p);
-    man.group.scale.setScalar(Math.max(0.05,1-0.4*p));
-    man.group.traverse(o=>{ if(o.material&&'opacity'in o.material){o.material.transparent=true;o.material.opacity=1-p;} });
-    if(p>=1){ clearMan(); queueSpawn(0.45); }
-  }
-  // startle squish + jump (guard: man may have been cleared in the 'leave' branch above)
-  if(man && man.startle!=null){
-    man.startle+=dt; const t=man.startle;
-    const sq=t<0.4?Math.sin(t/0.4*Math.PI):0;
-    u.butt.scale.set(1+sq*0.25,1-sq*0.32,1+sq*0.25);
-    man.group.position.y=Math.sin(clamp(t/0.5,0,1)*Math.PI)*0.22;
-    if(t>0.6){ man.startle=null; u.butt.scale.set(1,1,1); man.group.position.y=0; }
-  }
-}
-function queueSpawn(delay){ if(spawnLock||!S.running)return; spawnLock=true; setTimeout(spawnMan,delay*1000); }
 
 /* ============ camera (AR) ============ */
 let arStream=null;
@@ -645,29 +627,16 @@ function isClosed(lm){ // grab = fingers curled (tip near its own knuckle) OR a 
   const pinch = D(4,8)/scale < 0.55;      // thumb-index pinch counts as a grab too
   return curled>=2 || (sum/4)<0.78 || pinch;
 }
-function tryHandGrab(sx,sy){
-  if(!man||man.resolved||man.phase!=='ready'){ grabT=1; return; }
-  const b=buttScreen(); const d=Math.hypot(sx-b.x,sy-b.y);
-  if(d < Math.max(150,innerWidth*0.32)) doGrab(); else { grabT=1; SFX.squeak(); }
-}
-function trackHandFrame(){
+function trackHandFrame(){ // read the real hand -> handNX (lane) + trackClosed (flair)
   if(!(handTrackerReady && handTracker && arVideo && arVideo.readyState>=2)){ handTracked=false; return; }
   let res; try{ res=handTracker.detectForVideo(arVideo,performance.now()); }catch(e){ return; }
   const now=performance.now();
   if(res && res.landmarks && res.landmarks.length){
     handTracked=true; lastHandSeen=now;
     const lm=res.landmarks[0], palm=lm[9];
-    const mx=1-palm.x, my=palm.y, gain=1.5; // mirror X (front cam) + amplify so small moves read clearly
-    const nx=clamp((mx-0.5)*2*gain,-1,1), ny=clamp((0.5-my)*2*gain,-1,1);
-    const d=0.6, vH=Math.tan(camera.fov*Math.PI/360)*d, vW=vH*camera.aspect;
-    handTarget.x=nx*vW; handTarget.y=ny*vH; handTarget.z=-d; // map -> the 3D hand's space
+    handNX=clamp(((1-palm.x)-0.5)*2*1.5,-1,1); // mirror X (front cam) + amplify
     trackClosed=isClosed(lm);
-    const sx=(nx*0.5+0.5)*innerWidth, sy=(0.5-ny*0.5)*innerHeight; // where the hand visually is (for butt overlap)
-    if(trackClosed && !prevClosed) tryHandGrab(sx,sy);
-    prevClosed=trackClosed;
-  } else if(now-lastHandSeen>400){ // grace period: keep last position briefly so a dropped frame doesn't snap back
-    handTracked=false; prevClosed=false;
-  }
+  } else if(now-lastHandSeen>400){ handTracked=false; }
 }
 
 /* ============ loop ============ */
@@ -677,45 +646,35 @@ function frame(){
     const dt=Math.min(clock.getDelta(),0.05);
     S.timeLeft-=dt; if(S.timeLeft<=0){S.timeLeft=0;updHUD();endGame();return;}
 
-    // walk forward through Manhattan + head bob (same scene whether grabbing by hand or tap)
-    camera.position.z-=1.5*dt; walkPhase+=dt*7;
-    dirLight.position.set(camera.position.x-6,12,camera.position.z-18);
-    dirLight.target.position.set(camera.position.x,1,camera.position.z-3);
-    camera.position.y=1.6+Math.sin(walkPhase)*0.035;
-    camera.position.x=Math.sin(walkPhase*0.5)*0.02;
-    camera.rotation.z=Math.sin(walkPhase*0.5)*0.006;
+    // beat scheduler -> spawn booties on the beat
+    S.songT+=dt; while(S.songT>=S.nextBeat){ onBeat(); S.nextBeat+=BEAT; }
 
-    // discovery zoom-in punch when a booty becomes ready
-    const targetFov=(man && man.phase==='ready' && man.readyT<0.6)?baseFov-7:baseFov;
-    camera.fov=lerp(camera.fov,targetFov,0.08); camera.updateProjectionMatrix();
+    // camera fixed at the hit line, gentle bob
+    walkPhase+=dt*2.4;
+    camera.position.set(Math.sin(walkPhase*0.5)*0.02, 1.6+Math.sin(walkPhase)*0.03, 0);
+    camera.rotation.z=Math.sin(walkPhase*0.5)*0.005;
+    camera.fov=lerp(camera.fov,baseFov,0.1); camera.updateProjectionMatrix();
 
-    // first-person hand: ONE big cartoon hand follows the real hand in hand mode; two hands + tap otherwise
-    grabT=Math.max(0,grabT-dt*3.2);
-    const reach=grabT, bob=Math.sin(walkPhase*0.5)*0.012;
-    if(S.useHand){
-      handL.visible=false; handR.visible=true;
-      if(handTracked){ // follow the tracked real hand; curl on fist
-        handR.position.x=lerp(handR.position.x,handTarget.x,0.6);
-        handR.position.y=lerp(handR.position.y,handTarget.y,0.6);
-        handR.position.z=lerp(handR.position.z,handTarget.z,0.6);
-        handR.userData.fingers.rotation.x=lerp(handR.userData.fingers.rotation.x,trackClosed?1.4:0,0.5);
-      } else { // hand not in view (loading / out of frame): rest at bottom-center
-        handR.position.x=lerp(handR.position.x,0,0.3);
-        handR.position.y=lerp(handR.position.y,-0.30+bob+reach*0.16,0.5);
-        handR.position.z=lerp(handR.position.z,-0.6-reach*0.3,0.5);
-        handR.userData.fingers.rotation.x=reach*1.3;
-      }
-    } else {
-      [[handL,-1],[handR,1]].forEach(([h,sgn])=>{
-        h.userData.fingers.rotation.x=reach*1.3;
-        h.position.set(sgn*0.17*(1-reach*0.55), -0.30+bob+reach*0.16, -0.5-reach*0.34);
-      });
-    }
-
-    updateMan(dt);
+    // read the real hand (hand mode) -> handNX
     if(S.useHand) trackHandFrame();
 
-    // bloom etc. only in tap mode; in hand mode we save GPU for camera + hand inference
+    // ONE hand follows handNX horizontally across the lanes; curls when grabbing/closed
+    grabT=Math.max(0,grabT-dt*3.2);
+    const reach=grabT, bob=Math.sin(walkPhase)*0.01;
+    const d=0.6, vW=Math.tan(camera.fov*Math.PI/360)*d*camera.aspect;
+    handL.visible=false; handR.visible=true;
+    handR.position.x=lerp(handR.position.x, clamp(handNX,-1,1)*vW, 0.5);
+    handR.position.y=lerp(handR.position.y, -0.28+bob, 0.4);
+    handR.position.z=lerp(handR.position.z, -0.6, 0.4);
+    handR.userData.fingers.rotation.x=lerp(handR.userData.fingers.rotation.x, (S.useHand&&trackClosed)?1.2:reach*1.2, 0.4);
+
+    // lane highlight (which lane the hand is in)
+    const hl=handLane();
+    for(let i=0;i<hitPads.length;i++) hitPads[i].material.opacity=(i===hl?0.5:0.14);
+
+    updateNotes(dt); updHUD();
+
+    // bloom only in tap mode; hand mode saves GPU for camera + inference
     if(usePost && composer && !S.useHand){
       try{ VignetteGrain.uniforms.uTime.value+=dt; composer.render(); }
       catch(e){ console.warn('post-processing failed, falling back to plain render:',e); usePost=false; renderer.render(scene,camera); }
@@ -739,20 +698,18 @@ function frame(){
 function resetState(mode,sec){ S.mode=mode;S.score=0;S.combo=0;S.best=0;S.caught=0;S.timeLeft=sec;S.total=sec;S.running=true;frameErrs=0;updHUD(); }
 async function startPlay(useHand){
   if(AC()&&actx.state==='suspended')actx.resume();
-  clearMan(); showScreen(null); $('#arGate').classList.remove('active');
-  camera.position.set(0,1.6,0); camera.fov=baseFov; camera.updateProjectionMatrix(); walkPhase=0; grabT=0;
-  // ALWAYS the Manhattan 3D scene (camera, if used, is only a hand-input source behind the canvas)
+  clearNotes(); showScreen(null); $('#arGate').classList.remove('active');
+  camera.position.set(0,1.6,0); camera.fov=baseFov; camera.updateProjectionMatrix(); walkPhase=0; grabT=0; handNX=0;
   scene.background=skyTex; scene.fog=new THREE.FogExp2(0x6a4a7a,0.012); cityGroup.visible=true; sun.visible=true;
-  dirLight.position.set(-6,12,-18);
-  $('#trackHand').classList.remove('show'); prevClosed=false;
+  dirLight.position.set(-6,12,-18); dirLight.target.position.set(0,1,-6);
+  $('#trackHand').classList.remove('show'); prevClosed=false; trackClosed=false; handTracked=false;
   S.useHand=!!useHand;
-  handL.visible=handR.visible=true; // always show hands
-  handL.scale.setScalar(1.3); handR.scale.setScalar(useHand?0.6:1.3); // smaller single hand when tracking
+  handL.visible=false; handR.visible=true; handR.scale.setScalar(0.85);
   $('#hint').innerHTML = useHand
-    ? '✋ 손을 카메라에 비추고 <b>손을 오므리면(잡듯이)</b> 엉덩이를 잡아요! (안 되면 화면 <b>탭</b>)'
-    : '👆 화면을 <b>탭</b>해서 엉덩이를 잡아요! 뒤돌아볼 때(👀)는 금지 🍑';
-  resetState('street',60); setHUD(true);
-  if(useHand){ // ask for camera permission first (camera reads your hand; Manhattan stays the view)
+    ? '✋ 손을 <b>좌·우</b>로 움직여 오는 레인을 맞춰요! 👀 보는 놈 레인은 피하기'
+    : '👆 엉덩이가 오는 <b>레인</b>을 박자에 맞춰 탭! 👀 보는 놈은 피하기';
+  resetState('rhythm',60); setHUD(true);
+  if(useHand){ // camera permission gate first (camera only reads your hand; the highway stays the view)
     const err=$('#arGateErr');
     if(isInApp()||notSecure()){
       err.innerHTML=(notSecure()?'⚠️ <b>https</b> 주소로 열어야 카메라가 켜져요.<br>':'')
@@ -761,7 +718,7 @@ async function startPlay(useHand){
     } else err.style.display='none';
     $('#arGate').classList.add('active');
   } else {
-    clock.getDelta(); S.raf=requestAnimationFrame(frame); queueSpawn(0.5);
+    startLoop();
   }
 }
 async function beginHand(useCamera){
@@ -780,26 +737,26 @@ async function beginHand(useCamera){
       err.innerHTML=m; err.style.display='block'; return;
     }
     initHandTracker();
-  } else { // chose tap instead -> Manhattan + on-screen hands + tap
-    S.useHand=false; handL.visible=handR.visible=true; $('#trackHand').classList.remove('show');
-    $('#hint').innerHTML='👆 화면을 <b>탭</b>해서 엉덩이를 잡아요!';
+  } else { // chose tap instead
+    S.useHand=false; $('#trackHand').classList.remove('show');
+    $('#hint').innerHTML='👆 엉덩이가 오는 <b>레인</b>을 박자에 맞춰 탭! 👀 보는 놈은 피하기';
   }
   $('#arGate').classList.remove('active');
-  clock.getDelta(); S.raf=requestAnimationFrame(frame); queueSpawn(0.7);
+  startLoop();
 }
 function endGame(){
   S.running=false; cancelAnimationFrame(S.raf); setHUD(false);
-  if(S.useHand)stopCamera(); clearMan(); SFX.win();
+  if(S.useHand)stopCamera(); clearNotes(); SFX.win();
   const ranks=[{min:2200,e:'💎',n:'엉덩이 여신'},{min:1300,e:'👑',n:'엉덩이 마스터'},
     {min:650,e:'💖',n:'엉덩이 헌터'},{min:250,e:'✨',n:'새내기 헌터'},{min:-1,e:'🐣',n:'연습이 필요해!'}];
   const r=ranks.find(x=>S.score>=x.min);
   $('#rankEmoji').textContent=r.e; $('#rankName').textContent=r.n; $('#finalScore').textContent=S.score;
   $('#bestCombo').textContent=S.best; $('#caughtCount').textContent=S.caught;
-  $('#resultMode').textContent=(S.useHand?'🗽 맨해튼 · 손 인식':'🗽 맨해튼 · 탭')+' 결과';
+  $('#resultMode').textContent=(S.useHand?'🎵 리듬 · 손 인식':'🎵 리듬 · 탭')+' 결과';
   document.body.classList.remove('ar'); $('#trackHand').classList.remove('show'); $('#arGate').classList.remove('active'); showScreen('result');
 }
 function quitToTitle(){ S.running=false; cancelAnimationFrame(S.raf); setHUD(false);
-  if(S.useHand)stopCamera(); clearMan(); $('#trackHand').classList.remove('show'); $('#arGate').classList.remove('active'); showScreen('title'); }
+  if(S.useHand)stopCamera(); clearNotes(); $('#trackHand').classList.remove('show'); $('#arGate').classList.remove('active'); showScreen('title'); }
 
 /* ============ wire up ============ */
 $('#playStreet').addEventListener('click',()=>startPlay(true));   // Manhattan + hand recognition
@@ -813,7 +770,7 @@ $('#againBtn').addEventListener('click',()=>startPlay(!!S.useHand));
 $('#homeBtn').addEventListener('click',()=>showScreen('title'));
 $('#quitBtn').addEventListener('click',quitToTitle);
 $('#muteBtn').addEventListener('click',()=>{muted=!muted;$('#muteBtn').textContent=muted?'🔇':'🔊';});
-cv.addEventListener('pointerdown',e=>{e.preventDefault();doGrab();});
+cv.addEventListener('pointerdown',e=>{e.preventDefault(); handNX=clamp((e.clientX/innerWidth)*2-1,-1,1); grabT=1;}); // tap a lane
 window.addEventListener('contextmenu',e=>e.preventDefault());
 
 try{
