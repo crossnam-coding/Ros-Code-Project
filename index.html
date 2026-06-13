@@ -500,8 +500,8 @@ function buildHands(){
 /* ============ game state ============ */
 const S={mode:null,score:0,combo:0,best:0,caught:0,timeLeft:0,total:60,running:false,raf:0};
 let man=null, spawnLock=false, grabT=0, walkPhase=0, baseFov=62, frameErrs=0;
-let handTracker=null, handTrackerReady=false, handTrackerTried=false, trackClosed=false, prevClosed=false, trackTick=0;
-const trackPos={x:0,y:0};
+let handTracker=null, handTrackerReady=false, handTrackerTried=false, trackClosed=false, prevClosed=false, trackTick=0, handTracked=false;
+const handTarget={x:0,y:-0.3,z:-0.5};
 const screens={title:$('#s-title'),result:$('#s-result')};
 function showScreen(name){ for(const k in screens)screens[k].classList.toggle('active',k===name); }
 function setHUD(on){ $('#hud').classList.toggle('show',on); $('#timebar').classList.toggle('show',on); }
@@ -651,24 +651,20 @@ function tryHandGrab(sx,sy){
   if(d < Math.max(150,innerWidth*0.32)) doGrab(); else { grabT=1; SFX.squeak(); }
 }
 function trackHandFrame(){
-  const th=$('#trackHand');
-  if(!(handTrackerReady && handTracker && arVideo && arVideo.readyState>=2)) return;
+  if(!(handTrackerReady && handTracker && arVideo && arVideo.readyState>=2)){ handTracked=false; return; }
   if((trackTick++ % 2)!==0) return; // throttle inference (~half rate)
   let res; try{ res=handTracker.detectForVideo(arVideo,performance.now()); }catch(e){ return; }
   if(res && res.landmarks && res.landmarks.length){
-    handL.visible=handR.visible=false; // real hand takes over the screen
+    handTracked=true;
     const lm=res.landmarks[0], palm=lm[9];
-    trackPos.x=(1-palm.x)*innerWidth; trackPos.y=palm.y*innerHeight; // mirror X (front camera = mirror)
+    const mx=1-palm.x, my=palm.y; // mirror X (front camera)
+    const d=0.5, vH=Math.tan(camera.fov*Math.PI/360)*d, vW=vH*camera.aspect;
+    handTarget.x=(mx*2-1)*vW; handTarget.y=(1-my*2)*vH; handTarget.z=-d; // map screen -> the 3D hand's space
     trackClosed=isClosed(lm);
-    const b=buttScreen(), over=Math.hypot(trackPos.x-b.x,trackPos.y-b.y)<Math.max(150,innerWidth*0.32);
-    th.textContent=trackClosed?'✊':'✋';
-    th.style.left=trackPos.x+'px'; th.style.top=trackPos.y+'px';
-    th.classList.add('show'); th.classList.toggle('closed',trackClosed); th.classList.toggle('over',over && man && man.phase==='ready');
-    if(trackClosed && !prevClosed) tryHandGrab(trackPos.x,trackPos.y);
+    const sx=mx*innerWidth, sy=my*innerHeight; // screen pos for the butt-overlap check
+    if(trackClosed && !prevClosed) tryHandGrab(sx,sy);
     prevClosed=trackClosed;
-  } else { // no hand in view -> hide cursor, show the on-screen hands so it's never empty
-    th.classList.remove('show'); prevClosed=false; handL.visible=handR.visible=true;
-  }
+  } else { handTracked=false; prevClosed=false; }
 }
 
 /* ============ loop ============ */
@@ -690,13 +686,28 @@ function frame(){
     const targetFov=(man && man.phase==='ready' && man.readyT<0.6)?baseFov-7:baseFov;
     camera.fov=lerp(camera.fov,targetFov,0.08); camera.updateProjectionMatrix();
 
-    // first-person hand idle + grab animation (kept low in frame so they're always visible)
+    // first-person hand: ONE big cartoon hand follows the real hand in hand mode; two hands + tap otherwise
     grabT=Math.max(0,grabT-dt*3.2);
     const reach=grabT, bob=Math.sin(walkPhase*0.5)*0.012;
-    [[handL,-1],[handR,1]].forEach(([h,sgn])=>{
-      h.position.z=-0.5-reach*0.34; h.position.x=sgn*0.17*(1-reach*0.55);
-      h.position.y=-0.30+bob+reach*0.16; h.userData.fingers.rotation.x=reach*1.3;
-    });
+    if(S.useHand){
+      handL.visible=false; handR.visible=true;
+      if(handTracked){ // follow the tracked real hand; curl on fist
+        handR.position.x=lerp(handR.position.x,handTarget.x,0.5);
+        handR.position.y=lerp(handR.position.y,handTarget.y,0.5);
+        handR.position.z=lerp(handR.position.z,handTarget.z,0.5);
+        handR.userData.fingers.rotation.x=lerp(handR.userData.fingers.rotation.x,trackClosed?1.3:0,0.4);
+      } else { // hand not in view (loading / out of frame): rest at bottom-center
+        handR.position.x=lerp(handR.position.x,0,0.3);
+        handR.position.y=lerp(handR.position.y,-0.30+bob+reach*0.16,0.5);
+        handR.position.z=lerp(handR.position.z,-0.5-reach*0.34,0.5);
+        handR.userData.fingers.rotation.x=reach*1.3;
+      }
+    } else {
+      [[handL,-1],[handR,1]].forEach(([h,sgn])=>{
+        h.userData.fingers.rotation.x=reach*1.3;
+        h.position.set(sgn*0.17*(1-reach*0.55), -0.30+bob+reach*0.16, -0.5-reach*0.34);
+      });
+    }
 
     updateMan(dt);
     if(S.useHand) trackHandFrame();
