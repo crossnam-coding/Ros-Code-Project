@@ -500,7 +500,7 @@ function buildHands(){
 /* ============ game state ============ */
 const S={mode:null,score:0,combo:0,best:0,caught:0,timeLeft:0,total:60,running:false,raf:0};
 let man=null, spawnLock=false, grabT=0, walkPhase=0, baseFov=62, frameErrs=0;
-let handTracker=null, handTrackerReady=false, handTrackerTried=false, trackClosed=false, prevClosed=false, trackTick=0, handTracked=false;
+let handTracker=null, handTrackerReady=false, handTrackerTried=false, trackClosed=false, prevClosed=false, trackTick=0, handTracked=false, lastHandSeen=0;
 const handTarget={x:0,y:-0.3,z:-0.5};
 const screens={title:$('#s-title'),result:$('#s-result')};
 function showScreen(name){ for(const k in screens)screens[k].classList.toggle('active',k===name); }
@@ -603,7 +603,7 @@ let arStream=null;
 async function startCamera(){ // returns null on success, else an error code
   arMsg.textContent='📷 카메라 켜는 중...'; document.body.classList.remove('cam-off');
   if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){ arMsg.textContent=''; return 'unsupported'; }
-  try{ arStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'}},audio:false}); // front cam: wave your hand at the screen side
+  try{ arStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:640},height:{ideal:480}},audio:false}); // front cam: wave your hand at the screen side
     arVideo.srcObject=arStream; await arVideo.play().catch(()=>{}); arMsg.textContent=''; return null; }
   catch(e){ console.warn('camera failed/denied:',e); arMsg.textContent=''; return (e&&e.name)||'error'; }
 }
@@ -652,19 +652,22 @@ function tryHandGrab(sx,sy){
 }
 function trackHandFrame(){
   if(!(handTrackerReady && handTracker && arVideo && arVideo.readyState>=2)){ handTracked=false; return; }
-  if((trackTick++ % 2)!==0) return; // throttle inference (~half rate)
   let res; try{ res=handTracker.detectForVideo(arVideo,performance.now()); }catch(e){ return; }
+  const now=performance.now();
   if(res && res.landmarks && res.landmarks.length){
-    handTracked=true;
+    handTracked=true; lastHandSeen=now;
     const lm=res.landmarks[0], palm=lm[9];
-    const mx=1-palm.x, my=palm.y; // mirror X (front camera)
+    const mx=1-palm.x, my=palm.y, gain=1.5; // mirror X (front cam) + amplify so small moves read clearly
+    const nx=clamp((mx-0.5)*2*gain,-1,1), ny=clamp((0.5-my)*2*gain,-1,1);
     const d=0.6, vH=Math.tan(camera.fov*Math.PI/360)*d, vW=vH*camera.aspect;
-    handTarget.x=(mx*2-1)*vW; handTarget.y=(1-my*2)*vH; handTarget.z=-d; // map screen -> the 3D hand's space
+    handTarget.x=nx*vW; handTarget.y=ny*vH; handTarget.z=-d; // map -> the 3D hand's space
     trackClosed=isClosed(lm);
-    const sx=mx*innerWidth, sy=my*innerHeight; // screen pos for the butt-overlap check
+    const sx=(nx*0.5+0.5)*innerWidth, sy=(0.5-ny*0.5)*innerHeight; // where the hand visually is (for butt overlap)
     if(trackClosed && !prevClosed) tryHandGrab(sx,sy);
     prevClosed=trackClosed;
-  } else { handTracked=false; prevClosed=false; }
+  } else if(now-lastHandSeen>400){ // grace period: keep last position briefly so a dropped frame doesn't snap back
+    handTracked=false; prevClosed=false;
+  }
 }
 
 /* ============ loop ============ */
