@@ -636,12 +636,12 @@ async function initHandTracker(){
     setTimeout(()=>{ if(arMsg.textContent.indexOf('탭해서')>=0)arMsg.textContent=''; },4000);
   }
 }
-function isClosed(lm){ // fist = at least 3 fingers folded (tip closer to wrist than its PIP joint)
+function isClosed(lm){ // fist = at least 3 fingers folded (tip not much beyond its PIP joint) — lenient
   const w=lm[0], tips=[8,12,16,20], pips=[6,10,14,18]; let folded=0;
   for(let k=0;k<4;k++){
     const dt=Math.hypot(lm[tips[k]].x-w.x,lm[tips[k]].y-w.y);
     const dp=Math.hypot(lm[pips[k]].x-w.x,lm[pips[k]].y-w.y);
-    if(dt < dp*1.05) folded++;
+    if(dt < dp*1.2) folded++; // lenient: a partial curl already counts
   }
   return folded>=3;
 }
@@ -658,7 +658,7 @@ function trackHandFrame(){
     handTracked=true;
     const lm=res.landmarks[0], palm=lm[9];
     const mx=1-palm.x, my=palm.y; // mirror X (front camera)
-    const d=0.5, vH=Math.tan(camera.fov*Math.PI/360)*d, vW=vH*camera.aspect;
+    const d=0.6, vH=Math.tan(camera.fov*Math.PI/360)*d, vW=vH*camera.aspect;
     handTarget.x=(mx*2-1)*vW; handTarget.y=(1-my*2)*vH; handTarget.z=-d; // map screen -> the 3D hand's space
     trackClosed=isClosed(lm);
     const sx=mx*innerWidth, sy=my*innerHeight; // screen pos for the butt-overlap check
@@ -692,14 +692,14 @@ function frame(){
     if(S.useHand){
       handL.visible=false; handR.visible=true;
       if(handTracked){ // follow the tracked real hand; curl on fist
-        handR.position.x=lerp(handR.position.x,handTarget.x,0.5);
-        handR.position.y=lerp(handR.position.y,handTarget.y,0.5);
-        handR.position.z=lerp(handR.position.z,handTarget.z,0.5);
-        handR.userData.fingers.rotation.x=lerp(handR.userData.fingers.rotation.x,trackClosed?1.3:0,0.4);
+        handR.position.x=lerp(handR.position.x,handTarget.x,0.6);
+        handR.position.y=lerp(handR.position.y,handTarget.y,0.6);
+        handR.position.z=lerp(handR.position.z,handTarget.z,0.6);
+        handR.userData.fingers.rotation.x=lerp(handR.userData.fingers.rotation.x,trackClosed?1.4:0,0.5);
       } else { // hand not in view (loading / out of frame): rest at bottom-center
         handR.position.x=lerp(handR.position.x,0,0.3);
         handR.position.y=lerp(handR.position.y,-0.30+bob+reach*0.16,0.5);
-        handR.position.z=lerp(handR.position.z,-0.5-reach*0.34,0.5);
+        handR.position.z=lerp(handR.position.z,-0.6-reach*0.3,0.5);
         handR.userData.fingers.rotation.x=reach*1.3;
       }
     } else {
@@ -743,7 +743,8 @@ async function startPlay(useHand){
   dirLight.position.set(-6,12,-18);
   $('#trackHand').classList.remove('show'); prevClosed=false;
   S.useHand=!!useHand;
-  handL.visible=handR.visible=true; // always show hands; cursor takes over only when a real hand is detected
+  handL.visible=handR.visible=true; // always show hands
+  handL.scale.setScalar(1.3); handR.scale.setScalar(useHand?0.6:1.3); // smaller single hand when tracking
   $('#hint').innerHTML = useHand
     ? '✋ 손을 카메라에 비추고 <b>주먹 쥐어</b> 엉덩이를 잡아요! (안 되면 화면 <b>탭</b>)'
     : '👆 화면을 <b>탭</b>해서 엉덩이를 잡아요! 뒤돌아볼 때(👀)는 금지 🍑';
