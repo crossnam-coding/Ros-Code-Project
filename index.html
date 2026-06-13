@@ -24,11 +24,9 @@ body{position:fixed;inset:0;background:#0c0820}
 
 /* 3D canvas + camera video live at the very back */
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
-#arVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#111;display:none;z-index:0}
-#ar-fallback{position:absolute;inset:0;display:none;z-index:0;background:linear-gradient(#ffd1e8,#c9b9ff 60%,#9b8fd0)}
-body.ar #arVideo{display:block}
-body.ar.cam-off #arVideo{display:none}
-body.ar.cam-off #ar-fallback{display:block}
+/* camera video sits BEHIND the opaque 3D canvas — used only as a frame source for hand tracking, never shown */
+#arVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;z-index:0}
+#ar-fallback{display:none}
 
 /* TITLE */
 #s-title{background:radial-gradient(circle at 50% 120%,var(--pink2) 0%,var(--pink) 35%,var(--purple) 100%)}
@@ -123,8 +121,8 @@ body.ar.cam-off #ar-fallback{display:block}
       <h1 class="logo comic stroke">BOOTY<br>BUMP 3D<small>맨해튼 엉덩이 헌터 💖</small></h1>
       <div class="tag">1인칭 3D · 내 손으로 직접 잡아요 ✋🍑</div>
       <div class="menu">
-        <button class="btn pink" id="playStreet">🗽 맨해튼 거리 (3D)</button>
-        <button class="btn blue" id="playAR">✋ 손인식 AR 모드 (카메라)</button>
+        <button class="btn pink" id="playStreet">✋ 맨해튼 · 손 인식 (카메라)</button>
+        <button class="btn blue" id="playAR">👆 맨해튼 · 탭으로</button>
         <button class="btn yellow" id="howBtn">❓ 게임 방법</button>
       </div>
       <p class="note">※ 등장하는 남자는 전부 100% 만화 캐릭터예요. 가볍게 웃으며 즐기는 코믹 게임 😎</p>
@@ -629,9 +627,19 @@ async function initHandTracker(){
     setTimeout(()=>{ if(arMsg.textContent.indexOf('주먹')>=0)arMsg.textContent=''; },3200);
   }catch(e){
     console.warn('hand tracking unavailable -> tap fallback:',e); handTrackerReady=false;
+    handL.visible=handR.visible=true; // show the on-screen hands; tap still works
     arMsg.textContent='손 인식을 못 켰어요 — 화면을 탭해서 잡아요 ✋';
     setTimeout(()=>{ if(arMsg.textContent.indexOf('탭해서')>=0)arMsg.textContent=''; },3200);
   }
+}
+function isClosed(lm){ // fist = at least 3 fingers folded (tip closer to wrist than its PIP joint)
+  const w=lm[0], tips=[8,12,16,20], pips=[6,10,14,18]; let folded=0;
+  for(let k=0;k<4;k++){
+    const dt=Math.hypot(lm[tips[k]].x-w.x,lm[tips[k]].y-w.y);
+    const dp=Math.hypot(lm[pips[k]].x-w.x,lm[pips[k]].y-w.y);
+    if(dt < dp*1.05) folded++;
+  }
+  return folded>=3;
 }
 function tryHandGrab(sx,sy){
   if(!man||man.resolved||man.phase!=='ready'){ grabT=1; return; }
@@ -644,11 +652,9 @@ function trackHandFrame(){
   if((trackTick++ % 2)!==0) return; // throttle inference (~half rate)
   let res; try{ res=handTracker.detectForVideo(arVideo,performance.now()); }catch(e){ return; }
   if(res && res.landmarks && res.landmarks.length){
-    const lm=res.landmarks[0], wrist=lm[0], mcp=lm[9], palm=lm[9];
+    const lm=res.landmarks[0], palm=lm[9];
     trackPos.x=palm.x*innerWidth; trackPos.y=palm.y*innerHeight;
-    const hs=Math.hypot(mcp.x-wrist.x,mcp.y-wrist.y)||1e-4;
-    let avg=0; [8,12,16,20].forEach(i=>avg+=Math.hypot(lm[i].x-wrist.x,lm[i].y-wrist.y)); avg/=4;
-    trackClosed=(avg/hs)<1.5;
+    trackClosed=isClosed(lm);
     const b=buttScreen(), over=Math.hypot(trackPos.x-b.x,trackPos.y-b.y)<Math.max(150,innerWidth*0.32);
     th.textContent=trackClosed?'✊':'✋';
     th.style.left=trackPos.x+'px'; th.style.top=trackPos.y+'px';
@@ -665,11 +671,10 @@ function frame(){
     const dt=Math.min(clock.getDelta(),0.05);
     S.timeLeft-=dt; if(S.timeLeft<=0){S.timeLeft=0;updHUD();endGame();return;}
 
-    // walk forward (street only) + head bob
-    if(S.mode==='street'){ camera.position.z-=1.5*dt; walkPhase+=dt*7;
-      dirLight.position.set(camera.position.x-6,12,camera.position.z-18);
-      dirLight.target.position.set(camera.position.x,1,camera.position.z-3);
-    } else { walkPhase+=dt*3; }
+    // walk forward through Manhattan + head bob (same scene whether grabbing by hand or tap)
+    camera.position.z-=1.5*dt; walkPhase+=dt*7;
+    dirLight.position.set(camera.position.x-6,12,camera.position.z-18);
+    dirLight.target.position.set(camera.position.x,1,camera.position.z-3);
     camera.position.y=1.6+Math.sin(walkPhase)*0.035;
     camera.position.x=Math.sin(walkPhase*0.5)*0.02;
     camera.rotation.z=Math.sin(walkPhase*0.5)*0.006;
@@ -687,9 +692,10 @@ function frame(){
     });
 
     updateMan(dt);
-    if(S.mode==='ar') trackHandFrame();
+    if(S.useHand) trackHandFrame();
 
-    if(S.mode==='street' && usePost && composer){
+    // bloom etc. only in tap mode; in hand mode we save GPU for camera + hand inference
+    if(usePost && composer && !S.useHand){
       try{ VignetteGrain.uniforms.uTime.value+=dt; composer.render(); }
       catch(e){ console.warn('post-processing failed, falling back to plain render:',e); usePost=false; renderer.render(scene,camera); }
     } else { renderer.render(scene,camera); }
@@ -710,20 +716,21 @@ function frame(){
 
 /* ============ start / end ============ */
 function resetState(mode,sec){ S.mode=mode;S.score=0;S.combo=0;S.best=0;S.caught=0;S.timeLeft=sec;S.total=sec;S.running=true;frameErrs=0;updHUD(); }
-async function startPlay(mode){
+async function startPlay(useHand){
   if(AC()&&actx.state==='suspended')actx.resume();
   clearMan(); showScreen(null); $('#arGate').classList.remove('active');
-  document.body.classList.toggle('ar',mode==='ar'); document.body.classList.remove('cam-off');
   camera.position.set(0,1.6,0); camera.fov=baseFov; camera.updateProjectionMatrix(); walkPhase=0; grabT=0;
-  handL.visible=handR.visible=true; $('#trackHand').classList.remove('show'); prevClosed=false; // reset hands
-  if(mode==='ar'){ scene.background=null; scene.fog=null; cityGroup.visible=false; sun.visible=false;
-    dirLight.position.set(-3,6,2); dirLight.target.position.set(0,1,-3); }
-  else { scene.background=skyTex; scene.fog=new THREE.FogExp2(0x6a4a7a,0.012); cityGroup.visible=true; sun.visible=true; }
-  $('#hint').innerHTML = mode==='ar'
-    ? '✋ 손을 카메라에 비추고 <b>주먹 쥐어</b> 잡아요 (안 되면 화면 <b>탭</b>)'
-    : '앞의 꽃미남! 뒤돌아볼 때(👀) 말고 안 볼 때 <b>탭</b> ✋🍑';
-  resetState(mode, mode==='ar'?45:60); setHUD(true);
-  if(mode==='ar'){ // wait at the gate; camera permission is requested on button tap
+  // ALWAYS the Manhattan 3D scene (camera, if used, is only a hand-input source behind the canvas)
+  scene.background=skyTex; scene.fog=new THREE.FogExp2(0x6a4a7a,0.012); cityGroup.visible=true; sun.visible=true;
+  dirLight.position.set(-6,12,-18);
+  $('#trackHand').classList.remove('show'); prevClosed=false;
+  S.useHand=!!useHand;
+  handL.visible=handR.visible=!useHand; // tracked cursor replaces the fixed hands in hand mode
+  $('#hint').innerHTML = useHand
+    ? '✋ 손을 카메라에 비추고 <b>주먹 쥐어</b> 엉덩이를 잡아요! (안 되면 화면 <b>탭</b>)'
+    : '👆 화면을 <b>탭</b>해서 엉덩이를 잡아요! 뒤돌아볼 때(👀)는 금지 🍑';
+  resetState('street',60); setHUD(true);
+  if(useHand){ // ask for camera permission first (camera reads your hand; Manhattan stays the view)
     const err=$('#arGateErr');
     if(isInApp()||notSecure()){
       err.innerHTML=(notSecure()?'⚠️ <b>https</b> 주소로 열어야 카메라가 켜져요.<br>':'')
@@ -735,7 +742,7 @@ async function startPlay(mode){
     clock.getDelta(); S.raf=requestAnimationFrame(frame); queueSpawn(0.5);
   }
 }
-async function beginAR(useCamera){
+async function beginHand(useCamera){
   const err=$('#arGateErr'); err.style.display='none';
   if(useCamera){
     const e=await startCamera();
@@ -751,33 +758,36 @@ async function beginAR(useCamera){
       err.innerHTML=m; err.style.display='block'; return;
     }
     initHandTracker();
-  } else { document.body.classList.add('cam-off'); }
+  } else { // chose tap instead -> Manhattan + on-screen hands + tap
+    S.useHand=false; handL.visible=handR.visible=true; $('#trackHand').classList.remove('show');
+    $('#hint').innerHTML='👆 화면을 <b>탭</b>해서 엉덩이를 잡아요!';
+  }
   $('#arGate').classList.remove('active');
-  clock.getDelta(); S.raf=requestAnimationFrame(frame); queueSpawn(0.8);
+  clock.getDelta(); S.raf=requestAnimationFrame(frame); queueSpawn(0.7);
 }
 function endGame(){
   S.running=false; cancelAnimationFrame(S.raf); setHUD(false);
-  if(S.mode==='ar')stopCamera(); clearMan(); SFX.win();
+  if(S.useHand)stopCamera(); clearMan(); SFX.win();
   const ranks=[{min:2200,e:'💎',n:'엉덩이 여신'},{min:1300,e:'👑',n:'엉덩이 마스터'},
     {min:650,e:'💖',n:'엉덩이 헌터'},{min:250,e:'✨',n:'새내기 헌터'},{min:-1,e:'🐣',n:'연습이 필요해!'}];
   const r=ranks.find(x=>S.score>=x.min);
   $('#rankEmoji').textContent=r.e; $('#rankName').textContent=r.n; $('#finalScore').textContent=S.score;
   $('#bestCombo').textContent=S.best; $('#caughtCount').textContent=S.caught;
-  $('#resultMode').textContent=(S.mode==='ar'?'📸 AR 모드':'🗽 맨해튼 거리')+' 결과';
+  $('#resultMode').textContent=(S.useHand?'🗽 맨해튼 · 손 인식':'🗽 맨해튼 · 탭')+' 결과';
   document.body.classList.remove('ar'); $('#trackHand').classList.remove('show'); $('#arGate').classList.remove('active'); showScreen('result');
 }
 function quitToTitle(){ S.running=false; cancelAnimationFrame(S.raf); setHUD(false);
-  if(S.mode==='ar')stopCamera(); clearMan(); document.body.classList.remove('ar'); $('#trackHand').classList.remove('show'); $('#arGate').classList.remove('active'); showScreen('title'); }
+  if(S.useHand)stopCamera(); clearMan(); $('#trackHand').classList.remove('show'); $('#arGate').classList.remove('active'); showScreen('title'); }
 
 /* ============ wire up ============ */
-$('#playStreet').addEventListener('click',()=>startPlay('street'));
-$('#playAR').addEventListener('click',()=>startPlay('ar'));
-$('#arStartCam').addEventListener('click',()=>beginAR(true));
-$('#arStartTap').addEventListener('click',()=>beginAR(false));
+$('#playStreet').addEventListener('click',()=>startPlay(true));   // Manhattan + hand recognition
+$('#playAR').addEventListener('click',()=>startPlay(false));      // Manhattan + tap
+$('#arStartCam').addEventListener('click',()=>beginHand(true));
+$('#arStartTap').addEventListener('click',()=>beginHand(false));
 $('#arGateHome').addEventListener('click',quitToTitle);
 $('#howBtn').addEventListener('click',()=>$('#howModal').classList.add('active'));
 $('#howClose').addEventListener('click',()=>$('#howModal').classList.remove('active'));
-$('#againBtn').addEventListener('click',()=>startPlay(S.mode||'street'));
+$('#againBtn').addEventListener('click',()=>startPlay(!!S.useHand));
 $('#homeBtn').addEventListener('click',()=>showScreen('title'));
 $('#quitBtn').addEventListener('click',quitToTitle);
 $('#muteBtn').addEventListener('click',()=>{muted=!muted;$('#muteBtn').textContent=muted?'🔇':'🔊';});
