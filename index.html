@@ -283,7 +283,7 @@ function initThree(){
   renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.setClearColor(0x000000,0); // transparent for AR (video shows through)
-  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled=false; // shadows off: avoid mobile GPU/driver crashes
 
   scene=new THREE.Scene();
   skyTex=makeSky(); scene.background=skyTex;
@@ -294,12 +294,7 @@ function initThree(){
 
   hemi=new THREE.HemisphereLight(0x9aa0ff,0x2a2030,0.95); scene.add(hemi);
   dirLight=new THREE.DirectionalLight(0xffd9a0,2.1);
-  dirLight.position.set(-6,12,-18); dirLight.castShadow=true;
-  dirLight.shadow.mapSize.set(512,512);
-  dirLight.shadow.camera.near=1; dirLight.shadow.camera.far=40;
-  dirLight.shadow.camera.left=-8; dirLight.shadow.camera.right=8;
-  dirLight.shadow.camera.top=8; dirLight.shadow.camera.bottom=-8;
-  dirLight.shadow.bias=-0.0004;
+  dirLight.position.set(-6,12,-18); dirLight.castShadow=false;
   scene.add(dirLight); scene.add(dirLight.target);
 
   // sun glow far down the street
@@ -486,7 +481,7 @@ function buildHands(){
 
 /* ============ game state ============ */
 const S={mode:null,score:0,combo:0,best:0,caught:0,timeLeft:0,total:60,running:false,raf:0};
-let man=null, spawnLock=false, grabT=0, walkPhase=0, baseFov=62;
+let man=null, spawnLock=false, grabT=0, walkPhase=0, baseFov=62, frameErrs=0;
 const screens={title:$('#s-title'),result:$('#s-result')};
 function showScreen(name){ for(const k in screens)screens[k].classList.toggle('active',k===name); }
 function setHUD(on){ $('#hud').classList.toggle('show',on); $('#timebar').classList.toggle('show',on); }
@@ -572,8 +567,8 @@ function updateMan(dt){
     man.group.traverse(o=>{ if(o.material&&'opacity'in o.material){o.material.transparent=true;o.material.opacity=1-p;} });
     if(p>=1){ clearMan(); queueSpawn(0.45); }
   }
-  // startle squish + jump
-  if(man.startle!=null){
+  // startle squish + jump (guard: man may have been cleared in the 'leave' branch above)
+  if(man && man.startle!=null){
     man.startle+=dt; const t=man.startle;
     const sq=t<0.4?Math.sin(t/0.4*Math.PI):0;
     u.butt.scale.set(1+sq*0.25,1-sq*0.32,1+sq*0.25);
@@ -627,17 +622,27 @@ function frame(){
 
     updateMan(dt);
 
-    if(S.mode==='street' && usePost && composer){ VignetteGrain.uniforms.uTime.value+=dt; composer.render(); }
-    else { renderer.render(scene,camera); }
+    if(S.mode==='street' && usePost && composer){
+      try{ VignetteGrain.uniforms.uTime.value+=dt; composer.render(); }
+      catch(e){ console.warn('post-processing failed, falling back to plain render:',e); usePost=false; renderer.render(scene,camera); }
+    } else { renderer.render(scene,camera); }
     S.raf=requestAnimationFrame(frame);
   }catch(err){
-    console.error('frame error:',err); S.running=false; cancelAnimationFrame(S.raf);
-    arMsg.textContent='⚠️ 오류로 멈췄어요: '+(err&&err.message||err);
+    console.error('frame error:',err); frameErrs++;
+    if(frameErrs<=3){ // recover: drop effects and keep going instead of dying
+      usePost=false;
+      arMsg.textContent='⚠️ 효과를 줄이고 계속할게요…';
+      setTimeout(()=>{ if(arMsg.textContent.indexOf('효과를 줄이')>=0)arMsg.textContent=''; },1400);
+      S.raf=requestAnimationFrame(frame);
+    } else {
+      S.running=false; cancelAnimationFrame(S.raf);
+      arMsg.textContent='⚠️ 오류로 멈췄어요: '+(err&&err.message||err);
+    }
   }
 }
 
 /* ============ start / end ============ */
-function resetState(mode,sec){ S.mode=mode;S.score=0;S.combo=0;S.best=0;S.caught=0;S.timeLeft=sec;S.total=sec;S.running=true;updHUD(); }
+function resetState(mode,sec){ S.mode=mode;S.score=0;S.combo=0;S.best=0;S.caught=0;S.timeLeft=sec;S.total=sec;S.running=true;frameErrs=0;updHUD(); }
 async function startPlay(mode){
   if(AC()&&actx.state==='suspended')actx.resume();
   clearMan(); showScreen(null); document.body.classList.toggle('ar',mode==='ar');
