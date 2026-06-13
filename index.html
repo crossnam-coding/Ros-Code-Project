@@ -164,8 +164,8 @@ body{position:fixed;inset:0;background:#0c0820}
     <div class="result-card" style="gap:10px">
       <div style="font-size:48px">📷✋</div>
       <h2 class="comic" style="color:var(--purple);font-size:26px">AR 손인식 모드</h2>
-      <p>카메라로 <b>실제 손</b>을 인식해요. 손을 비추고 <b>주먹을 쥐면</b> 꽃미남 엉덩이를 잡습니다 🍑</p>
-      <p style="font-size:12px;color:#888">아래 버튼을 누르면 <b>카메라 권한 허용</b> 창이 떠요. (밝은 곳 + 후면 카메라 권장)</p>
+      <p>휴대폰을 들고 <b>다른 손</b>을 화면 쪽(<b>전면</b>) 카메라에 비추세요. 손을 움직이면 커서가 따라오고, <b>주먹을 쥐면</b> 엉덩이를 잡아요 🍑</p>
+      <p style="font-size:12px;color:#888">아래 버튼을 누르면 <b>카메라 권한 허용</b> 창이 떠요. (밝은 곳 권장)</p>
       <button class="btn pink" id="arStartCam">📷 카메라 켜고 손인식 시작</button>
       <button class="btn gray" id="arStartTap">👆 카메라 없이 탭으로 할래요</button>
       <button class="btn gray" id="arGateHome" style="background:#cdb9d9">🏠 메인으로</button>
@@ -603,7 +603,7 @@ let arStream=null;
 async function startCamera(){ // returns null on success, else an error code
   arMsg.textContent='📷 카메라 켜는 중...'; document.body.classList.remove('cam-off');
   if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){ arMsg.textContent=''; return 'unsupported'; }
-  try{ arStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+  try{ arStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'}},audio:false}); // front cam: wave your hand at the screen side
     arVideo.srcObject=arStream; await arVideo.play().catch(()=>{}); arMsg.textContent=''; return null; }
   catch(e){ console.warn('camera failed/denied:',e); arMsg.textContent=''; return (e&&e.name)||'error'; }
 }
@@ -614,22 +614,26 @@ function stopCamera(){ if(arStream){arStream.getTracks().forEach(t=>t.stop());ar
 /* ============ real hand tracking (MediaPipe, lazy-loaded; tap fallback) ============ */
 async function initHandTracker(){
   if(handTrackerTried) return; handTrackerTried=true;
-  arMsg.textContent='✋ 손 인식 준비 중...';
+  arMsg.textContent='✋ 손 인식 로딩 중… (몇 초 걸려요)';
+  const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),15000));
   try{
-    const mod=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
-    const vision=await mod.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
-    const make=(delegate)=>mod.HandLandmarker.createFromOptions(vision,{
-      baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate},
-      runningMode:'VIDEO', numHands:1});
-    try{ handTracker=await make('GPU'); }catch(e1){ handTracker=await make('CPU'); }
-    handTrackerReady=true; handL.visible=handR.visible=false; // tracked hand replaces fixed hands
+    const setup=(async()=>{
+      const mod=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
+      const vision=await mod.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+      const make=(delegate)=>mod.HandLandmarker.createFromOptions(vision,{
+        baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate},
+        runningMode:'VIDEO', numHands:1});
+      try{ return await make('GPU'); }catch(e1){ return await make('CPU'); }
+    })();
+    handTracker=await Promise.race([setup,timeout]);
+    handTrackerReady=true; // fixed hands stay until a real hand is detected (handled per-frame)
     arMsg.textContent='✋ 손을 카메라에 비추고 주먹을 쥐어 잡아요!';
-    setTimeout(()=>{ if(arMsg.textContent.indexOf('주먹')>=0)arMsg.textContent=''; },3200);
+    setTimeout(()=>{ if(arMsg.textContent.indexOf('주먹')>=0)arMsg.textContent=''; },3500);
   }catch(e){
     console.warn('hand tracking unavailable -> tap fallback:',e); handTrackerReady=false;
-    handL.visible=handR.visible=true; // show the on-screen hands; tap still works
-    arMsg.textContent='손 인식을 못 켰어요 — 화면을 탭해서 잡아요 ✋';
-    setTimeout(()=>{ if(arMsg.textContent.indexOf('탭해서')>=0)arMsg.textContent=''; },3200);
+    handL.visible=handR.visible=true; // keep the on-screen hands; tap still works
+    arMsg.textContent='손 인식을 못 켰어요 😢 화면을 탭해서 잡아요 ✋';
+    setTimeout(()=>{ if(arMsg.textContent.indexOf('탭해서')>=0)arMsg.textContent=''; },4000);
   }
 }
 function isClosed(lm){ // fist = at least 3 fingers folded (tip closer to wrist than its PIP joint)
@@ -652,8 +656,9 @@ function trackHandFrame(){
   if((trackTick++ % 2)!==0) return; // throttle inference (~half rate)
   let res; try{ res=handTracker.detectForVideo(arVideo,performance.now()); }catch(e){ return; }
   if(res && res.landmarks && res.landmarks.length){
+    handL.visible=handR.visible=false; // real hand takes over the screen
     const lm=res.landmarks[0], palm=lm[9];
-    trackPos.x=palm.x*innerWidth; trackPos.y=palm.y*innerHeight;
+    trackPos.x=(1-palm.x)*innerWidth; trackPos.y=palm.y*innerHeight; // mirror X (front camera = mirror)
     trackClosed=isClosed(lm);
     const b=buttScreen(), over=Math.hypot(trackPos.x-b.x,trackPos.y-b.y)<Math.max(150,innerWidth*0.32);
     th.textContent=trackClosed?'✊':'✋';
@@ -661,7 +666,9 @@ function trackHandFrame(){
     th.classList.add('show'); th.classList.toggle('closed',trackClosed); th.classList.toggle('over',over && man && man.phase==='ready');
     if(trackClosed && !prevClosed) tryHandGrab(trackPos.x,trackPos.y);
     prevClosed=trackClosed;
-  } else { th.classList.remove('show'); prevClosed=false; }
+  } else { // no hand in view -> hide cursor, show the on-screen hands so it's never empty
+    th.classList.remove('show'); prevClosed=false; handL.visible=handR.visible=true;
+  }
 }
 
 /* ============ loop ============ */
@@ -725,7 +732,7 @@ async function startPlay(useHand){
   dirLight.position.set(-6,12,-18);
   $('#trackHand').classList.remove('show'); prevClosed=false;
   S.useHand=!!useHand;
-  handL.visible=handR.visible=!useHand; // tracked cursor replaces the fixed hands in hand mode
+  handL.visible=handR.visible=true; // always show hands; cursor takes over only when a real hand is detected
   $('#hint').innerHTML = useHand
     ? '✋ 손을 카메라에 비추고 <b>주먹 쥐어</b> 엉덩이를 잡아요! (안 되면 화면 <b>탭</b>)'
     : '👆 화면을 <b>탭</b>해서 엉덩이를 잡아요! 뒤돌아볼 때(👀)는 금지 🍑';
