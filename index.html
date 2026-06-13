@@ -78,6 +78,7 @@ body.ar.cam-off #ar-fallback{display:block}
 #trackHand.over{filter:drop-shadow(0 0 14px #ff5ea0) drop-shadow(0 4px 7px rgba(0,0,0,.55))}
 
 /* RESULT */
+#arGate{z-index:16;background:rgba(18,10,38,.88)}
 #s-result{background:radial-gradient(circle at 50% 30%,var(--pink2),var(--purple))}
 .result-card{position:relative;z-index:2;background:#fff;border:4px solid var(--ink);border-radius:26px;box-shadow:0 8px 0 var(--ink);padding:26px 22px;text-align:center;width:min(340px,88vw);display:flex;flex-direction:column;gap:10px;animation:drop .5s cubic-bezier(.2,1.3,.5,1)}
 @keyframes drop{0%{transform:translateY(-40px) scale(.8);opacity:0}100%{transform:none;opacity:1}}
@@ -123,7 +124,7 @@ body.ar.cam-off #ar-fallback{display:block}
       <div class="tag">1인칭 3D · 내 손으로 직접 잡아요 ✋🍑</div>
       <div class="menu">
         <button class="btn pink" id="playStreet">🗽 맨해튼 거리 (3D)</button>
-        <button class="btn blue" id="playAR">📸 AR 모드 (카메라)</button>
+        <button class="btn blue" id="playAR">✋ 손인식 AR 모드 (카메라)</button>
         <button class="btn yellow" id="howBtn">❓ 게임 방법</button>
       </div>
       <p class="note">※ 등장하는 남자는 전부 100% 만화 캐릭터예요. 가볍게 웃으며 즐기는 코믹 게임 😎</p>
@@ -159,6 +160,20 @@ body.ar.cam-off #ar-fallback{display:block}
     </div>
   </div>
   <div class="timebar" id="timebar"><i id="timebarFill"></i></div>
+
+  <!-- AR start / permission gate -->
+  <section id="arGate" class="screen">
+    <div class="result-card" style="gap:10px">
+      <div style="font-size:48px">📷✋</div>
+      <h2 class="comic" style="color:var(--purple);font-size:26px">AR 손인식 모드</h2>
+      <p>카메라로 <b>실제 손</b>을 인식해요. 손을 비추고 <b>주먹을 쥐면</b> 꽃미남 엉덩이를 잡습니다 🍑</p>
+      <p style="font-size:12px;color:#888">아래 버튼을 누르면 <b>카메라 권한 허용</b> 창이 떠요. (밝은 곳 + 후면 카메라 권장)</p>
+      <button class="btn pink" id="arStartCam">📷 카메라 켜고 손인식 시작</button>
+      <button class="btn gray" id="arStartTap">👆 카메라 없이 탭으로 할래요</button>
+      <button class="btn gray" id="arGateHome" style="background:#cdb9d9">🏠 메인으로</button>
+      <p id="arGateErr" style="color:#ff3b6b;font-size:13px;display:none;line-height:1.5"></p>
+    </div>
+  </section>
 
   <!-- how-to -->
   <section id="howModal" class="screen" style="background:rgba(0,0,0,.6);z-index:40">
@@ -587,16 +602,15 @@ function queueSpawn(delay){ if(spawnLock||!S.running)return; spawnLock=true; set
 
 /* ============ camera (AR) ============ */
 let arStream=null;
-async function startCamera(){
-  arMsg.textContent='📷 카메라 준비 중...'; document.body.classList.remove('cam-off');
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ camFallback(); return; }
+async function startCamera(){ // returns null on success, else an error code
+  arMsg.textContent='📷 카메라 켜는 중...'; document.body.classList.remove('cam-off');
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){ arMsg.textContent=''; return 'unsupported'; }
   try{ arStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-    arVideo.srcObject=arStream; await arVideo.play().catch(()=>{}); arMsg.textContent=''; }
-  catch(e){ camFallback(); }
+    arVideo.srcObject=arStream; await arVideo.play().catch(()=>{}); arMsg.textContent=''; return null; }
+  catch(e){ console.warn('camera failed/denied:',e); arMsg.textContent=''; return (e&&e.name)||'error'; }
 }
-function camFallback(){ document.body.classList.add('cam-off');
-  arMsg.textContent='카메라가 없어서 만화 배경으로 진행할게요! 😜';
-  setTimeout(()=>{ if(arMsg.textContent.indexOf('만화')>=0)arMsg.textContent=''; },1800); }
+function isInApp(){ return /KAKAOTALK|Instagram|FBAN|FBAV|FB_IAB|Line\/|NAVER|DaumApps|Snapchat|everytimeApp|; wv\)/i.test(navigator.userAgent||''); }
+function notSecure(){ return location.protocol!=='https:' && location.hostname!=='localhost' && location.hostname!=='127.0.0.1'; }
 function stopCamera(){ if(arStream){arStream.getTracks().forEach(t=>t.stop());arStream=null;} arVideo.srcObject=null; }
 
 /* ============ real hand tracking (MediaPipe, lazy-loaded; tap fallback) ============ */
@@ -698,7 +712,8 @@ function frame(){
 function resetState(mode,sec){ S.mode=mode;S.score=0;S.combo=0;S.best=0;S.caught=0;S.timeLeft=sec;S.total=sec;S.running=true;frameErrs=0;updHUD(); }
 async function startPlay(mode){
   if(AC()&&actx.state==='suspended')actx.resume();
-  clearMan(); showScreen(null); document.body.classList.toggle('ar',mode==='ar');
+  clearMan(); showScreen(null); $('#arGate').classList.remove('active');
+  document.body.classList.toggle('ar',mode==='ar'); document.body.classList.remove('cam-off');
   camera.position.set(0,1.6,0); camera.fov=baseFov; camera.updateProjectionMatrix(); walkPhase=0; grabT=0;
   handL.visible=handR.visible=true; $('#trackHand').classList.remove('show'); prevClosed=false; // reset hands
   if(mode==='ar'){ scene.background=null; scene.fog=null; cityGroup.visible=false; sun.visible=false;
@@ -708,9 +723,37 @@ async function startPlay(mode){
     ? '✋ 손을 카메라에 비추고 <b>주먹 쥐어</b> 잡아요 (안 되면 화면 <b>탭</b>)'
     : '앞의 꽃미남! 뒤돌아볼 때(👀) 말고 안 볼 때 <b>탭</b> ✋🍑';
   resetState(mode, mode==='ar'?45:60); setHUD(true);
-  if(mode==='ar'){ await startCamera(); initHandTracker(); }
-  clock.getDelta();
-  if(S.running){ S.raf=requestAnimationFrame(frame); queueSpawn(mode==='ar'?0.8:0.5); }
+  if(mode==='ar'){ // wait at the gate; camera permission is requested on button tap
+    const err=$('#arGateErr');
+    if(isInApp()||notSecure()){
+      err.innerHTML=(notSecure()?'⚠️ <b>https</b> 주소로 열어야 카메라가 켜져요.<br>':'')
+        +(isInApp()?'⚠️ <b>앱 내부 브라우저</b>로 보고 계신 것 같아요. 카메라가 막힐 수 있으니 우측 메뉴에서 <b>Chrome/Safari로 열기</b>를 추천!':'');
+      err.style.display='block';
+    } else err.style.display='none';
+    $('#arGate').classList.add('active');
+  } else {
+    clock.getDelta(); S.raf=requestAnimationFrame(frame); queueSpawn(0.5);
+  }
+}
+async function beginAR(useCamera){
+  const err=$('#arGateErr'); err.style.display='none';
+  if(useCamera){
+    const e=await startCamera();
+    if(e){
+      let m = e==='unsupported' ? '이 브라우저는 카메라(getUserMedia)를 지원하지 않아요.'
+        : e==='NotAllowedError' ? '카메라 권한이 <b>거부</b>됐어요. 주소창의 🔒 → 카메라 → <b>허용</b> 후 다시 시도하세요.'
+        : e==='NotFoundError' ? '카메라를 찾을 수 없어요. (기기에 카메라가 없거나 사용 중)'
+        : e==='NotReadableError' ? '다른 앱이 카메라를 쓰고 있어요. 그 앱을 닫고 다시 시도하세요.'
+        : '카메라를 켤 수 없어요 ('+e+').';
+      if(notSecure()) m += '<br>⚠️ <b>https</b> 주소가 아니에요. https://crossnam-coding.github.io/Ros-Code-Project/ 로 열어주세요.';
+      if(isInApp()) m += '<br>⚠️ <b>앱 내부 브라우저</b>(카카오톡·인스타 등)는 카메라가 막혀요. 우측 상단 <b>⋯ 메뉴 → 다른 브라우저(Chrome/Safari)로 열기</b>!';
+      m += '<br>또는 아래 <b>탭 모드</b>로 바로 즐길 수 있어요 👇';
+      err.innerHTML=m; err.style.display='block'; return;
+    }
+    initHandTracker();
+  } else { document.body.classList.add('cam-off'); }
+  $('#arGate').classList.remove('active');
+  clock.getDelta(); S.raf=requestAnimationFrame(frame); queueSpawn(0.8);
 }
 function endGame(){
   S.running=false; cancelAnimationFrame(S.raf); setHUD(false);
@@ -721,14 +764,17 @@ function endGame(){
   $('#rankEmoji').textContent=r.e; $('#rankName').textContent=r.n; $('#finalScore').textContent=S.score;
   $('#bestCombo').textContent=S.best; $('#caughtCount').textContent=S.caught;
   $('#resultMode').textContent=(S.mode==='ar'?'📸 AR 모드':'🗽 맨해튼 거리')+' 결과';
-  document.body.classList.remove('ar'); $('#trackHand').classList.remove('show'); showScreen('result');
+  document.body.classList.remove('ar'); $('#trackHand').classList.remove('show'); $('#arGate').classList.remove('active'); showScreen('result');
 }
 function quitToTitle(){ S.running=false; cancelAnimationFrame(S.raf); setHUD(false);
-  if(S.mode==='ar')stopCamera(); clearMan(); document.body.classList.remove('ar'); $('#trackHand').classList.remove('show'); showScreen('title'); }
+  if(S.mode==='ar')stopCamera(); clearMan(); document.body.classList.remove('ar'); $('#trackHand').classList.remove('show'); $('#arGate').classList.remove('active'); showScreen('title'); }
 
 /* ============ wire up ============ */
 $('#playStreet').addEventListener('click',()=>startPlay('street'));
 $('#playAR').addEventListener('click',()=>startPlay('ar'));
+$('#arStartCam').addEventListener('click',()=>beginAR(true));
+$('#arStartTap').addEventListener('click',()=>beginAR(false));
+$('#arGateHome').addEventListener('click',quitToTitle);
 $('#howBtn').addEventListener('click',()=>$('#howModal').classList.add('active'));
 $('#howClose').addEventListener('click',()=>$('#howModal').classList.remove('active'));
 $('#againBtn').addEventListener('click',()=>startPlay(S.mode||'street'));
