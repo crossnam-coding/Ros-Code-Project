@@ -22,6 +22,15 @@ ollama pull gemma3n:e4b      # 가벼우면 gemma3n:e2b
 ollama serve                 # 백그라운드 구동
 ```
 
+## 먼저 연결 점검 (받아둔 모델 자동탐지)
+> ⚠️ 이 스크립트는 **Ollama가 깔린 그 PC에서** 실행해야 합니다. (원격/다른 PC면 로컬 Ollama에 못 붙음)
+```bash
+cd phase1
+python3 measure.py --check
+```
+설치된 모델 목록과 **자동 선택될 판독 모델**을 보여줍니다.
+`JUDGE_MODEL`을 따로 안 줘도 `gemma e4b → e2b → 기타 gemma` 순으로 알아서 잡습니다.
+
 ## 실행
 ```bash
 cd phase1
