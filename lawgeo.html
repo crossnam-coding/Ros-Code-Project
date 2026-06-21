@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI 검색 노출 진단 · 로펌용 (베타)</title>
+<meta name="description" content="의뢰인은 이제 네이버가 아니라 ChatGPT에서 변호사를 찾습니다. 우리 로펌이 AI 검색에 노출되는지 60초 만에 자가진단하세요." />
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --line:#262b36; --ink:#e8ebf1; --sub:#9aa4b2;
+    --brand:#5b8cff; --brand2:#7a6bff; --ok:#36c08a; --warn:#f0b429; --bad:#f0556a;
+    --chip:#1e2330;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0c0e13,#0f1115 240px);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 18px 80px}
+  .badge{display:inline-block;font-size:12px;color:var(--brand);background:rgba(91,140,255,.12);
+    border:1px solid rgba(91,140,255,.3);padding:4px 10px;border-radius:999px;margin-bottom:14px}
+  h1{font-size:27px;line-height:1.35;margin:0 0 10px;letter-spacing:-.5px}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{color:var(--sub);font-size:15px;margin:0 0 22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin:16px 0}
+  label{display:block;font-size:13px;color:var(--sub);margin:14px 0 6px}
+  input,select{width:100%;background:#10131a;border:1px solid var(--line);color:var(--ink);
+    padding:12px 13px;border-radius:10px;font-size:15px;outline:none}
+  input:focus,select:focus{border-color:var(--brand)}
+  .row{display:flex;gap:12px}
+  .row>div{flex:1}
+  button{cursor:pointer;font-family:inherit}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;border:0;
+    padding:14px;border-radius:11px;font-size:16px;font-weight:700;margin-top:20px}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);font-weight:600}
+  .hidden{display:none}
+  .prompt{display:flex;align-items:flex-start;gap:12px;padding:12px;border:1px solid var(--line);
+    border-radius:11px;margin:9px 0;background:#10131a}
+  .prompt .q{flex:1;font-size:14.5px}
+  .prompt .copy{flex:none;background:var(--chip);border:1px solid var(--line);color:var(--sub);
+    border-radius:8px;padding:6px 10px;font-size:12px}
+  .prompt .copy.done{color:var(--ok);border-color:rgba(54,192,138,.5)}
+  .chk{flex:none;width:22px;height:22px;margin-top:1px;accent-color:var(--ok)}
+  .step-title{font-size:16px;font-weight:700;margin:0 0 4px}
+  .step-sub{font-size:13px;color:var(--sub);margin:0 0 14px}
+  .score-big{font-size:46px;font-weight:800;letter-spacing:-1px}
+  .score-wrap{text-align:center;padding:8px 0 4px}
+  .grade{font-size:14px;font-weight:700;padding:4px 12px;border-radius:999px;display:inline-block}
+  .bar{height:12px;background:#10131a;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:14px 0 6px}
+  .bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--bad),var(--warn),var(--ok))}
+  ul.fix{list-style:none;padding:0;margin:8px 0 0}
+  ul.fix li{padding:11px 12px;border:1px solid var(--line);border-radius:10px;margin:8px 0;background:#10131a;font-size:14px}
+  ul.fix li b{color:var(--ink)}
+  ul.fix li span{color:var(--sub);font-size:13px;display:block;margin-top:2px}
+  .report{white-space:pre-wrap;background:#0c0e13;border:1px dashed var(--line);border-radius:10px;
+    padding:14px;font-size:13px;color:var(--sub);margin-top:10px;font-family:ui-monospace,Menlo,monospace}
+  .note{font-size:12px;color:var(--sub);margin-top:10px}
+  .ok-text{color:var(--ok)} .warn-text{color:var(--warn)} .bad-text{color:var(--bad)}
+  .footer{color:#6b7480;font-size:12px;text-align:center;margin-top:40px;line-height:1.7}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#222838;
+    border:1px solid var(--line);color:var(--ink);padding:10px 16px;border-radius:10px;font-size:13px;
+    opacity:0;pointer-events:none;transition:.2s}
+  .toast.show{opacity:1}
+  .kpi{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .kpi div{flex:1;min-width:120px;background:#10131a;border:1px solid var(--line);border-radius:10px;padding:12px}
+  .kpi b{display:block;font-size:20px} .kpi small{color:var(--sub);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="badge">베타 · 로펌 마케팅 담당자용</span>
+  <h1>의뢰인은 이제 네이버가 아니라<br><span class="hl">ChatGPT에서 변호사를 찾습니다.</span></h1>
+  <p class="lead">소비자 5명 중 1명이 변호사를 고를 때 AI에게 먼저 물어봅니다. 우리 로펌이 그 답변에 나오는지, 60초 만에 자가진단해 보세요.</p>
+
+  <!-- STEP 1 : 입력 -->
+  <div class="card" id="card-input">
+    <p class="step-title">① 우리 로펌 정보</p>
+    <p class="step-sub">입력값으로 의뢰인이 실제로 던지는 질문 세트를 자동 생성합니다.</p>
+    <label>로펌 / 변호사명</label>
+    <input id="firm" placeholder="예) 법무법인 OO · OOO 변호사" />
+    <div class="row">
+      <div>
+        <label>전문분야</label>
+        <select id="field">
+          <option value="이혼·가사">이혼·가사</option>
+          <option value="상속">상속</option>
+          <option value="형사">형사</option>
+          <option value="교통사고">교통사고</option>
+          <option value="개인회생·파산">개인회생·파산</option>
+          <option value="부동산">부동산</option>
+          <option value="기업법무">기업법무</option>
+          <option value="노동">노동</option>
+          <option value="의료">의료</option>
+          <option value="성범죄">성범죄</option>
+        </select>
+      </div>
+      <div>
+        <label>주요 지역</label>
+        <input id="region" placeholder="예) 강남 · 서초 · 부산" />
+      </div>
+    </div>
+    <button class="btn" onclick="start()">진단 질문 생성하기 →</button>
+  </div>
+
+  <!-- STEP 2 : 프롬프트 -->
+  <div class="card hidden" id="card-prompts">
+    <p class="step-title">② AI에 직접 물어보기</p>
+    <p class="step-sub">아래 질문을 <b>ChatGPT · Perplexity · Gemini</b>에 붙여넣어 보세요. 답변에 <b id="firm-echo"></b>이(가) 언급되면 왼쪽 체크박스를 누르세요.</p>
+    <div id="prompt-list"></div>
+    <button class="btn" onclick="score()">결과 보기 →</button>
+  </div>
+
+  <!-- STEP 3 : 결과 -->
+  <div class="card hidden" id="card-result">
+    <p class="step-title">③ 우리 로펌 AI 검색 점유율</p>
+    <div class="score-wrap">
+      <div class="score-big" id="score-pct">0%</div>
+      <span class="grade" id="grade"></span>
+    </div>
+    <div class="bar"><span id="bar-fill" style="width:0%"></span></div>
+    <div class="kpi">
+      <div><b id="k-hit">0</b><small>노출된 질문</small></div>
+      <div><b id="k-total">0</b><small>전체 질문</small></div>
+      <div><b id="k-miss">0</b><small>놓친 질문</small></div>
+    </div>
+
+    <p class="step-title" style="margin-top:22px">처방 — AI가 우리를 인용하게 만들려면</p>
+    <ul class="fix">
+      <li><b>① 구조화된 전문분야 페이지</b><span>분야·지역·해결사례를 명확한 텍스트로. AI는 이미지·PDF 후기를 못 읽습니다.</span></li>
+      <li><b>② 외부 인용 신뢰도(언론·인터뷰·칼럼)</b><span>AI는 제3자가 언급한 변호사를 우선 추천합니다. 보도·기고가 핵심.</span></li>
+      <li><b>③ 일관된 명칭·정보(NAP)</b><span>로펌명·분야·지역이 사이트마다 다르면 AI가 동일 주체로 인식하지 못합니다.</span></li>
+      <li><b>④ 실제 질문에 답하는 콘텐츠</b><span>"이혼 재산분할 기준" 같이 의뢰인이 AI에 던지는 질문을 제목으로.</span></li>
+    </ul>
+
+    <p class="step-title" style="margin-top:22px">진단 요약 (복사해서 보관·공유)</p>
+    <div class="report" id="report"></div>
+    <button class="btn ghost" onclick="copyReport()">요약 복사하기</button>
+  </div>
+
+  <!-- STEP 4 : 사전등록 -->
+  <div class="card hidden" id="card-signup">
+    <p class="step-title">④ 매달 자동으로 추적받기</p>
+    <p class="step-sub">경쟁 로펌 대비 우리 점유율이 어떻게 변하는지 매달 리포트로 보내드립니다. 정식 출시 시 사전등록자 혜택을 드립니다.</p>
+    <label>이메일</label>
+    <input id="email" type="email" placeholder="name@lawfirm.com" />
+    <button class="btn" onclick="signup()">사전등록 (무료)</button>
+    <p class="note">* 입력 정보는 진단 외 용도로 사용하지 않습니다. 변호사 광고규정상 본 도구는 노출을 보장하지 않으며, 측정·진단 목적의 참고 자료입니다.</p>
+  </div>
+
+  <p class="footer">
+    AI 검색 노출 진단 (베타) · 의료/세무 등 다른 전문직 버전 문의 환영<br>
+    데이터 근거: 소비자의 AI 검색 전환 가속(2026), 변호사 탐색의 AI 이동
+  </p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const FIELD_TEMPLATES = {
+  "이혼·가사": ["{R} 이혼 전문 변호사 추천해줘","재산분할 잘하는 변호사 어디가 좋아?","양육권 소송 잘하는 변호사 추천","{R}에서 이혼 소송 비용 적당하고 평판 좋은 로펌","이혼 변호사 고를 때 잘하는 곳 3곳만 추천해줘"],
+  "상속": ["{R} 상속 전문 변호사 추천","상속재산 분쟁 잘하는 변호사 어디?","유류분 소송 잘하는 로펌 추천","상속포기·한정승인 상담 잘하는 변호사 {R}","상속 변호사 평판 좋은 곳 3곳 추천"],
+  "형사": ["{R} 형사 전문 변호사 추천","구속영장 대응 잘하는 변호사 어디?","형사사건 승소율 높은 로펌 {R}","음주운전 변호사 잘하는 곳 추천","형사 변호사 후기 좋은 곳 3곳"],
+  "교통사고": ["{R} 교통사고 전문 변호사 추천","교통사고 합의금 많이 받아주는 변호사","교통사고 후유장해 잘하는 로펌 {R}","12대 중과실 형사합의 변호사 추천","교통사고 변호사 평판 좋은 곳 3곳"],
+  "개인회생·파산": ["{R} 개인회생 잘하는 법무법인 추천","개인파산 면책 잘 받는 변호사 어디?","개인회생 비용 저렴하고 평판 좋은 곳 {R}","회생 인가율 높은 로펌 추천","개인회생 변호사 후기 좋은 곳 3곳"],
+  "부동산": ["{R} 부동산 전문 변호사 추천","전세사기·보증금 반환 잘하는 변호사","명도소송 잘하는 로펌 {R}","부동산 계약 분쟁 변호사 추천","부동산 변호사 평판 좋은 곳 3곳"],
+  "기업법무": ["{R} 기업법무 로펌 추천","스타트업 자문 잘하는 변호사 어디?","계약서 검토 잘하는 로펌 {R}","M&A 자문 경험 많은 변호사 추천","중소기업 법률자문 평판 좋은 곳 3곳"],
+  "노동": ["{R} 노동 전문 변호사 추천","부당해고 잘 다투는 변호사 어디?","임금체불 받아주는 로펌 {R}","산재 보상 잘하는 변호사 추천","노동 변호사 후기 좋은 곳 3곳"],
+  "의료": ["{R} 의료소송 전문 변호사 추천","의료사고 손해배상 잘하는 변호사","의료분쟁 승소 경험 많은 로펌 {R}","수술 과실 소송 변호사 추천","의료 변호사 평판 좋은 곳 3곳"],
+  "성범죄": ["{R} 성범죄 전문 변호사 추천","성범죄 무혐의 잘 받는 변호사 어디?","성범죄 피해자 국선 말고 사선 변호사 {R}","성범죄 형사 변호사 후기 좋은 곳","성범죄 변호사 잘하는 곳 3곳 추천"]
+};
+let state = {firm:"",field:"",region:"",prompts:[],hits:[]};
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600);}
+
+function start(){
+  const firm=document.getElementById('firm').value.trim();
+  const field=document.getElementById('field').value;
+  const region=document.getElementById('region').value.trim()||"우리 지역";
+  if(!firm){toast('로펌/변호사명을 입력해 주세요');return;}
+  state={firm,field,region,prompts:[],hits:[]};
+  document.getElementById('firm-echo').textContent=firm;
+  const tpl=FIELD_TEMPLATES[field]||FIELD_TEMPLATES["이혼·가사"];
+  state.prompts=tpl.map(q=>q.replace(/\{R\}/g,region));
+  const list=document.getElementById('prompt-list');
+  list.innerHTML="";
+  state.prompts.forEach((q,i)=>{
+    const row=document.createElement('div');row.className='prompt';
+    row.innerHTML=`<input type="checkbox" class="chk" data-i="${i}">
+      <div class="q">${q}</div>
+      <button class="copy" onclick="copyPrompt(this,${i})">복사</button>`;
+    list.appendChild(row);
+  });
+  document.getElementById('card-prompts').classList.remove('hidden');
+  document.getElementById('card-prompts').scrollIntoView({behavior:'smooth'});
+}
+
+function copyPrompt(btn,i){
+  navigator.clipboard.writeText(state.prompts[i]).then(()=>{btn.textContent='복사됨';btn.classList.add('done');toast('복사됐어요 · AI에 붙여넣어 보세요');});
+}
+
+function score(){
+  const checks=[...document.querySelectorAll('.chk')];
+  const hit=checks.filter(c=>c.checked).length;
+  const total=checks.length;
+  const miss=total-hit;
+  const pct=Math.round(hit/total*100);
+  state.hits=checks.map(c=>c.checked);
+  document.getElementById('score-pct').textContent=pct+'%';
+  document.getElementById('bar-fill').style.width=pct+'%';
+  document.getElementById('k-hit').textContent=hit;
+  document.getElementById('k-total').textContent=total;
+  document.getElementById('k-miss').textContent=miss;
+  const g=document.getElementById('grade');
+  let grade,cls;
+  if(pct>=70){grade='양호 — AI 검색에 잘 노출됩니다';cls='ok';}
+  else if(pct>=30){grade='보통 — 경쟁사에 밀리는 구간';cls='warn';}
+  else{grade='위험 — 의뢰인이 AI에서 우리를 못 찾습니다';cls='bad';}
+  g.textContent=grade;
+  g.style.color=cls==='ok'?'var(--ok)':cls==='warn'?'var(--warn)':'var(--bad)';
+  g.style.background=cls==='ok'?'rgba(54,192,138,.12)':cls==='warn'?'rgba(240,180,41,.12)':'rgba(240,85,106,.12)';
+  buildReport(hit,total,miss,pct,grade);
+  document.getElementById('card-result').classList.remove('hidden');
+  document.getElementById('card-signup').classList.remove('hidden');
+  document.getElementById('card-result').scrollIntoView({behavior:'smooth'});
+}
+
+function buildReport(hit,total,miss,pct,grade){
+  const d=new Date().toISOString().slice(0,10);
+  const missList=state.prompts.filter((q,i)=>!state.hits[i]).map(q=>'   · '+q).join('\n')||'   (없음 — 전부 노출)';
+  const txt=
+`[AI 검색 노출 진단 요약]  ${d}
+로펌: ${state.firm}
+분야/지역: ${state.field} · ${state.region}
+
+AI 검색 점유율: ${pct}%  (${hit}/${total} 노출)
+판정: ${grade}
+
+▼ AI 답변에서 놓친 질문 (= 경쟁사에 뺏기는 의뢰)
+${missList}
+
+▼ 우선 조치
+ 1. 전문분야 페이지를 텍스트 중심으로 구조화
+ 2. 언론·칼럼 등 제3자 인용 확보
+ 3. 사이트 전반 로펌명/분야/지역 표기 통일
+ 4. 의뢰인이 AI에 던지는 질문을 콘텐츠 제목으로
+
+* 본 진단은 측정·참고용이며 노출을 보장하지 않습니다.`;
+  document.getElementById('report').textContent=txt;
+}
+
+function copyReport(){
+  navigator.clipboard.writeText(document.getElementById('report').textContent).then(()=>toast('요약을 복사했어요'));
+}
+
+function signup(){
+  const email=document.getElementById('email').value.trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('이메일 형식을 확인해 주세요');return;}
+  // MVP: 백엔드 연결 전 단계. 정식 운영 시 아래를 Formspree/구글폼/자체 API로 교체.
+  const subject=encodeURIComponent('[AI검색진단] 사전등록 - '+state.firm);
+  const body=encodeURIComponent(`이메일: ${email}\n로펌: ${state.firm}\n분야/지역: ${state.field} / ${state.region}`);
+  toast('사전등록 완료 — 감사합니다!');
+  // 메일 클라이언트로 폴백 전송 (운영자 수신용)
+  window.location.href=`mailto:crossnam@gmail.com?subject=${subject}&body=${body}`;
+}
+</script>
+</body>
+</html>
